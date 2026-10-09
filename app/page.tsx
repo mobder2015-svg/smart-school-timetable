@@ -12,6 +12,8 @@ const DAYS = [
 
 interface Period {
   id: string;
+  periodNumber: number;
+  periodName: string;
   subject: string;
   time: string;
   teacher: string;
@@ -26,6 +28,16 @@ interface SchoolRecord {
   lastUpdated: string;
   periodsCount: number;
 }
+
+// الهيكل الافتراضي لأي يوم (6 دروس ثابتة)
+const createDefaultDayPeriods = (): Period[] => [
+  { id: '1', periodNumber: 1, periodName: 'الدرس الأول', subject: '', time: '08:00 - 08:45', teacher: '', room: '' },
+  { id: '2', periodNumber: 2, periodName: 'الدرس الثاني', subject: '', time: '08:45 - 09:30', teacher: '', room: '' },
+  { id: '3', periodNumber: 3, periodName: 'الدرس الثالث', subject: '', time: '09:45 - 10:30', teacher: '', room: '' },
+  { id: '4', periodNumber: 4, periodName: 'الدرس الرابع', subject: '', time: '10:30 - 11:15', teacher: '', room: '' },
+  { id: '5', periodNumber: 5, periodName: 'الدرس الخامس', subject: '', time: '11:30 - 12:15', teacher: '', room: '' },
+  { id: '6', periodNumber: 6, periodName: 'الدرس السادس', subject: '', time: '12:15 - 13:00', teacher: '', room: '' },
+];
 
 export default function SmartSchoolTimetable() {
   const [viewMode, setViewMode] = useState<'admin' | 'student' | 'super-admin'>('admin');
@@ -42,19 +54,15 @@ export default function SmartSchoolTimetable() {
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
   const [selectedDay, setSelectedDay] = useState('sunday');
+  
+  // جدول الأسبوع المكون من 6 دروس لكل يوم افتراضياً
   const [schedule, setSchedule] = useState<Record<string, Period[]>>({
-    sunday: [],
-    monday: [],
-    tuesday: [],
-    wednesday: [],
-    thursday: [],
+    sunday: createDefaultDayPeriods(),
+    monday: createDefaultDayPeriods(),
+    tuesday: createDefaultDayPeriods(),
+    wednesday: createDefaultDayPeriods(),
+    thursday: createDefaultDayPeriods(),
   });
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSubject, setNewSubject] = useState('');
-  const [newTime, setNewTime] = useState('');
-  const [newTeacher, setNewTeacher] = useState('');
-  const [newRoom, setNewRoom] = useState('');
 
   useEffect(() => {
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
@@ -71,17 +79,20 @@ export default function SmartSchoolTimetable() {
       
       const schoolScheduleKey = `schedule_${savedSchoolName}`;
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
-      const oldGeneralSchedule = localStorage.getItem('schoolTimetableData');
 
       if (savedSchedule) {
-        setSchedule(JSON.parse(savedSchedule));
-      } else if (oldGeneralSchedule) {
         try {
-          const parsedOld = JSON.parse(oldGeneralSchedule);
-          if (parsedOld.schedule) {
-            setSchedule(parsedOld.schedule);
-            localStorage.setItem(schoolScheduleKey, JSON.stringify(parsedOld.schedule));
-          }
+          const parsed = JSON.parse(savedSchedule);
+          // دمج التأكد من وجود 6 دروس لكل يوم
+          const normalized: Record<string, Period[]> = {};
+          DAYS.forEach(day => {
+            if (parsed[day.id] && Array.isArray(parsed[day.id])) {
+              normalized[day.id] = parsed[day.id];
+            } else {
+              normalized[day.id] = createDefaultDayPeriods();
+            }
+          });
+          setSchedule(normalized);
         } catch (e) {
           console.error(e);
         }
@@ -102,26 +113,30 @@ export default function SmartSchoolTimetable() {
 
     const schoolScheduleKey = `schedule_${schoolName}`;
     const savedSchedule = localStorage.getItem(schoolScheduleKey);
-    const oldGeneralSchedule = localStorage.getItem('schoolTimetableData');
 
     let currentSchedule = schedule;
     if (savedSchedule) {
-      currentSchedule = JSON.parse(savedSchedule);
-      setSchedule(currentSchedule);
-    } else if (oldGeneralSchedule) {
       try {
-        const parsedOld = JSON.parse(oldGeneralSchedule);
-        if (parsedOld.schedule) {
-          currentSchedule = parsedOld.schedule;
-          setSchedule(currentSchedule);
-          localStorage.setItem(schoolScheduleKey, JSON.stringify(currentSchedule));
-        }
+        const parsed = JSON.parse(savedSchedule);
+        const normalized: Record<string, Period[]> = {};
+        DAYS.forEach(day => {
+          if (parsed[day.id] && Array.isArray(parsed[day.id])) {
+            normalized[day.id] = parsed[day.id];
+          } else {
+            normalized[day.id] = createDefaultDayPeriods();
+          }
+        });
+        currentSchedule = normalized;
+        setSchedule(currentSchedule);
       } catch (e) {
         console.error(e);
       }
     }
 
-    const totalPeriods = Object.values(currentSchedule).reduce((acc, curr) => acc + curr.length, 0);
+    // حساب إجمالي الحصص المملوءة
+    const totalPeriods = Object.values(currentSchedule).reduce(
+      (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
+    );
 
     const newSchoolRecord: SchoolRecord = {
       id: schoolName.toLowerCase().replace(/\s+/g, '-'),
@@ -141,29 +156,30 @@ export default function SmartSchoolTimetable() {
     setLoginError('');
   };
 
-  const handleAddPeriod = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSubject.trim()) return;
-
-    const newPeriod: Period = {
-      id: Date.now().toString(),
-      subject: newSubject,
-      time: newTime || '08:00 - 09:00',
-      teacher: newTeacher || 'غير محدد',
-      room: newRoom || '1',
-    };
+  // تحديث حقل معين لأحد الـ 6 دروس
+  const handlePeriodChange = (periodId: string, field: keyof Period, value: string) => {
+    const updatedDayPeriods = schedule[selectedDay].map(p => {
+      if (p.id === periodId) {
+        return { ...p, [field]: value };
+      }
+      return p;
+    });
 
     const updatedSchedule = {
       ...schedule,
-      [selectedDay]: [...(schedule[selectedDay] || []), newPeriod],
+      [selectedDay]: updatedDayPeriods,
     };
 
     setSchedule(updatedSchedule);
-    
+
+    // حفظ تلقائي في الـ LocalStorage
     const schoolScheduleKey = `schedule_${schoolName}`;
     localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
 
-    const totalPeriods = Object.values(updatedSchedule).reduce((acc, curr) => acc + curr.length, 0);
+    // تحديث السجل العام
+    const totalPeriods = Object.values(updatedSchedule).reduce(
+      (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
+    );
     const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
     const updatedSchoolsList = existingSchools.map(s => {
       if (s.schoolName === schoolName) {
@@ -173,24 +189,6 @@ export default function SmartSchoolTimetable() {
     });
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
-
-    setNewSubject('');
-    setNewTime('');
-    setNewTeacher('');
-    setNewRoom('');
-    setIsModalOpen(false);
-  };
-
-  const handleDeletePeriod = (dayId: string, periodId: string) => {
-    const updatedDayPeriods = schedule[dayId].filter((p) => p.id !== periodId);
-    const updatedSchedule = {
-      ...schedule,
-      [dayId]: updatedDayPeriods,
-    };
-    setSchedule(updatedSchedule);
-
-    const schoolScheduleKey = `schedule_${schoolName}`;
-    localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
   };
 
   const handleLogout = () => {
@@ -209,7 +207,7 @@ export default function SmartSchoolTimetable() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans relative" dir="rtl">
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
       
       {viewMode === 'admin' && !isAdminAuthenticated && (
         <div className="max-w-md mx-auto mt-10 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
@@ -315,26 +313,17 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* شريط الأيام وزر الإضافة */}
+          {/* شريط الأيام */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <h2 className="text-sm font-semibold text-white">اختر اليوم لعرض وتعديل الحصص:</h2>
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"
-              >
-                <span>➕</span> إضافة حصة ليوم {DAYS.find(d => d.id === selectedDay)?.name}
-              </button>
-            </div>
-
+            <h2 className="text-sm font-semibold text-white">اختر اليوم لتعبئة وتعديل الحصص الـ 6:</h2>
             <div className="flex gap-2 overflow-x-auto pb-2">
               {DAYS.map((day) => (
                 <button
                   key={day.id}
                   onClick={() => setSelectedDay(day.id)}
-                  className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
+                  className={`flex-1 min-w-[85px] py-3 px-3 rounded-xl text-xs font-bold text-center transition ${
                     selectedDay === day.id 
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40' 
                       : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
                   }`}
                 >
@@ -344,140 +333,79 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* نافذة الإضافة (Modal) */}
-          {isModalOpen && (
-            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <span>📚</span> إضافة حصة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
-                  </h3>
-                  <button 
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-slate-400 hover:text-white bg-slate-800 px-3 py-1 rounded-xl text-xs"
-                  >
-                    ✕ إغلاق
-                  </button>
-                </div>
-
-                <form onSubmit={handleAddPeriod} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">اسم المادة الدراسية *</label>
-                    <input 
-                      type="text" 
-                      placeholder="مثال: رياضيات متقدمة" 
-                      value={newSubject} 
-                      onChange={(e) => setNewSubject(e.target.value)} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
-                      required 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">وقت الحصة</label>
-                    <input 
-                      type="text" 
-                      placeholder="مثال: 08:00 - 09:00" 
-                      value={newTime} 
-                      onChange={(e) => setNewTime(e.target.value)} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">أستاذ المادة</label>
-                    <input 
-                      type="text" 
-                      placeholder="مثال: د. أحمد" 
-                      value={newTeacher} 
-                      onChange={(e) => setNewTeacher(e.target.value)} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">رقم أو اسم القاعة</label>
-                    <input 
-                      type="text" 
-                      placeholder="مثال: 3 أو قاعة المختبر" 
-                      value={newRoom} 
-                      onChange={(e) => setNewRoom(e.target.value)} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
-                    />
-                  </div>
-
-                  <div className="pt-2 flex gap-3">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsModalOpen(false)}
-                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium py-3 rounded-xl transition"
-                    >
-                      إلغاء
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-600/30"
-                    >
-                      حفظ الحصة وإضافتها للجدول ✨
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* جدول الحصص مقسم على شكل كرتات وحقول احترافية */}
+          {/* الحقول الـ 6 الثابتة للدرس */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>📚</span> الحصص المسجلة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
+                <span>📚</span> جدول الحصص الـ 6 ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
               </h2>
-              <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl">
-                {schedule[selectedDay]?.length || 0} دروس مسجلة
+              <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-xl font-medium">
+                التعديل يتم ويحفظ تلقائياً ✨
               </span>
             </div>
 
-            {schedule[selectedDay]?.length === 0 ? (
-              <div className="text-center py-12">
-                <span className="text-4xl">☕</span>
-                <p className="text-xs text-slate-400 mt-2">لا توجد حصص مسجلة لهذا اليوم بعد. اضغط على زر "إضافة حصة" أعلاه.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {schedule[selectedDay]?.map((period, index) => (
-                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-md transition hover:border-indigo-500/40">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shadow-inner">
-                          {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                        </span>
-                        <h3 className="text-base font-bold text-white">{period.subject}</h3>
-                      </div>
-                      <button 
-                        onClick={() => handleDeletePeriod(selectedDay, period.id)} 
-                        className="text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5"
-                      >
-                        <span>🗑️</span> حذف
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className="bg-slate-900/90 border border-slate-800/60 p-2.5 rounded-xl text-slate-300 flex items-center gap-2">
-                        <span>⏰</span> <span className="font-medium text-white">{period.time}</span>
-                      </div>
-                      <div className="bg-slate-900/90 border border-slate-800/60 p-2.5 rounded-xl text-slate-300 flex items-center gap-2">
-                        <span>👨‍🏫</span> <span className="font-medium text-white">{period.teacher}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-900/50 border border-slate-800/40 px-3 py-2 rounded-xl text-xs text-slate-400 flex items-center justify-between">
-                      <span>🚪 القاعة الدراسية:</span>
-                      <span className="font-semibold text-white">{period.room}</span>
+            <div className="space-y-4">
+              {schedule[selectedDay]?.map((period) => (
+                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+                  {/* شريط عنوان الدرس */}
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-extrabold">
+                        0{period.periodNumber}
+                      </span>
+                      <h3 className="text-sm font-bold text-white">{period.periodName}</h3>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {/* حقول الإدخال الأربعة للدرس */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">اسم المادة</label>
+                      <input 
+                        type="text" 
+                        value={period.subject} 
+                        onChange={(e) => handlePeriodChange(period.id, 'subject', e.target.value)}
+                        placeholder="مثال: رياضيات" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">الوقت</label>
+                      <input 
+                        type="text" 
+                        value={period.time} 
+                        onChange={(e) => handlePeriodChange(period.id, 'time', e.target.value)}
+                        placeholder="08:00 - 08:45" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">اسم الأستاذ</label>
+                      <input 
+                        type="text" 
+                        value={period.teacher} 
+                        onChange={(e) => handlePeriodChange(period.id, 'teacher', e.target.value)}
+                        placeholder="أ. علي" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">رقم القاعة</label>
+                      <input 
+                        type="text" 
+                        value={period.room} 
+                        onChange={(e) => handlePeriodChange(period.id, 'room', e.target.value)}
+                        placeholder="5" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -602,31 +530,29 @@ export default function SmartSchoolTimetable() {
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-xl">
             <div className="flex items-center justify-between mb-4 px-1">
               <span className="text-sm font-bold text-white">جدول يوم: {DAYS.find(d => d.id === selectedDay)?.name}</span>
-              <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">{schedule[selectedDay]?.length || 0} دروس</span>
+              <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">
+                {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} دروس نشطة
+              </span>
             </div>
 
-            {schedule[selectedDay]?.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-8">لا توجد حصص مجدولة لهذا اليوم.</p>
-            ) : (
-              <div className="space-y-3">
-                {schedule[selectedDay]?.map((period, index) => (
-                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-inner">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">الدرس {index + 1 < 10 ? `0${index + 1}` : index + 1}</span>
-                      <h3 className="text-sm font-bold text-white">{period.subject}</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                      <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time}</div>
-                      <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher}</div>
-                    </div>
-                    <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
-                      <span>🚪 القاعة:</span>
-                      <span className="font-semibold text-white">{period.room}</span>
-                    </div>
+            <div className="space-y-3">
+              {schedule[selectedDay]?.map((period) => (
+                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2 shadow-inner">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{period.periodName}</span>
+                    <h3 className="text-sm font-bold text-white">{period.subject || 'حصة فراغ / غير محددة'}</h3>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                    <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || 'غير محدد'}</div>
+                    <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || 'غير محدد'}</div>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
+                    <span>🚪 القاعة:</span>
+                    <span className="font-semibold text-white">{period.room || 'غير محددة'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="text-center pt-2">
