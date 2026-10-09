@@ -50,7 +50,7 @@ export default function SmartSchoolTimetable() {
     thursday: [],
   });
 
-  // حالة التحكم بنافذة إضافة حصة (Modal)
+  // حالة النافذة المنبثقة لإضافة حصة جديدة
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newTime, setNewTime] = useState('');
@@ -175,7 +175,7 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
 
-    // تصفير الحقول وإغلاق النافذة تلقائياً
+    // تصفير الحقول وإغلاق النافذة المنبثقة تلقائياً
     setNewSubject('');
     setNewTime('');
     setNewTeacher('');
@@ -317,15 +317,15 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* شريط الأيام */}
+          {/* شريط الأيام واختيار زر الإضافة */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-sm font-semibold text-white">اختر اليوم لعرض وتعديل الحصص:</h2>
               <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md transition flex items-center gap-2"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"
               >
-                <span>➕</span> إضافة حصة جديدة ليوم {DAYS.find(d => d.id === selectedDay)?.name}
+                <span>➕</span> إضافة حصة ليوم {DAYS.find(d => d.id === selectedDay)?.name}
               </button>
             </div>
 
@@ -349,14 +349,14 @@ export default function SmartSchoolTimetable() {
           {/* نافذة منبثقة (Modal) لإضافة حصة جديدة عند الضغط على الزر */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>📚</span> إضافة حصة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
                   </h3>
                   <button 
                     onClick={() => setIsModalOpen(false)}
-                    className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs"
+                    className="text-slate-400 hover:text-white bg-slate-800 px-3 py-1 rounded-xl text-xs"
                   >
                     ✕ إغلاق
                   </button>
@@ -440,7 +440,7 @@ export default function SmartSchoolTimetable() {
             {schedule[selectedDay]?.length === 0 ? (
               <div className="text-center py-10">
                 <span className="text-3xl">☕</span>
-                <p className="text-xs text-slate-400 mt-2">لا توجد حصص مسجلة لهذا اليوم بعد. اضغط على زر "إضافة حصة جديدة" أعلاه.</p>
+                <p className="text-xs text-slate-400 mt-2">لا توجد حصص مسجلة لهذا اليوم بعد. اضغط على زر "إضافة حصة" أعلاه.</p>
               </div>
             ) : (
               <div className="space-y-3">
