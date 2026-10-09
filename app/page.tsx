@@ -50,6 +50,8 @@ export default function SmartSchoolTimetable() {
     thursday: [],
   });
 
+  // حالة التحكم بنافذة إضافة حصة (Modal)
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newTime, setNewTime] = useState('');
   const [newTeacher, setNewTeacher] = useState('');
@@ -68,7 +70,6 @@ export default function SmartSchoolTimetable() {
       setSchoolName(savedSchoolName);
       setIsAdminAuthenticated(true);
       
-      // محاولة استرجاع جدول هذه المدرسة بالتحديد، وإن لم يوجد نبحث عن الجدول القديم العام لعدم ضياع البيانات
       const schoolScheduleKey = `schedule_${savedSchoolName}`;
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
       const oldGeneralSchedule = localStorage.getItem('schoolTimetableData');
@@ -80,7 +81,6 @@ export default function SmartSchoolTimetable() {
           const parsedOld = JSON.parse(oldGeneralSchedule);
           if (parsedOld.schedule) {
             setSchedule(parsedOld.schedule);
-            // حفظه فوراً بالمفتاح الجديد للمدرسة
             localStorage.setItem(schoolScheduleKey, JSON.stringify(parsedOld.schedule));
           }
         } catch (e) {
@@ -175,10 +175,12 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
 
+    // تصفير الحقول وإغلاق النافذة تلقائياً
     setNewSubject('');
     setNewTime('');
     setNewTeacher('');
     setNewRoom('');
+    setIsModalOpen(false);
   };
 
   const handleDeletePeriod = (dayId: string, periodId: string) => {
@@ -209,10 +211,10 @@ export default function SmartSchoolTimetable() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans relative" dir="rtl">
       
       {viewMode === 'admin' && !isAdminAuthenticated && (
-        <div className="max-w-md mx-auto mt-10 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <div className="max-w-md mx-auto mt-10 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
               🔒
@@ -315,52 +317,147 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <span>➕</span> إضافة حصة ليوم: <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
-            </h2>
+          {/* شريط الأيام */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="text-sm font-semibold text-white">اختر اليوم لعرض وتعديل الحصص:</h2>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md transition flex items-center gap-2"
+              >
+                <span>➕</span> إضافة حصة جديدة ليوم {DAYS.find(d => d.id === selectedDay)?.name}
+              </button>
+            </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
+            <div className="flex gap-2 overflow-x-auto pb-2">
               {DAYS.map((day) => (
                 <button
                   key={day.id}
                   onClick={() => setSelectedDay(day.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition ${
-                    selectedDay === day.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-950 text-slate-400 border border-slate-800'
+                  className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
+                    selectedDay === day.id 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                      : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
                   }`}
                 >
                   {day.name}
                 </button>
               ))}
             </div>
-
-            <form onSubmit={handleAddPeriod} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <input type="text" placeholder="اسم المادة (مثال: رياضيات)" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" required />
-              <input type="text" placeholder="الوقت (08:00 - 09:00)" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
-              <input type="text" placeholder="أستاذ المادة" value={newTeacher} onChange={(e) => setNewTeacher(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
-              <input type="text" placeholder="القاعة" value={newRoom} onChange={(e) => setNewRoom(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
-              <div className="sm:col-span-2 md:col-span-4">
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl text-sm transition">حفظ الحصة</button>
-              </div>
-            </form>
           </div>
 
+          {/* نافذة منبثقة (Modal) لإضافة حصة جديدة عند الضغط على الزر */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>📚</span> إضافة حصة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
+                  </h3>
+                  <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs"
+                  >
+                    ✕ إغلاق
+                  </button>
+                </div>
+
+                <form onSubmit={handleAddPeriod} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">اسم المادة الدراسية *</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: رياضيات متقدمة" 
+                      value={newSubject} 
+                      onChange={(e) => setNewSubject(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                      required 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">وقت الحصة</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: 08:00 - 09:00" 
+                      value={newTime} 
+                      onChange={(e) => setNewTime(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">أستاذ المادة</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: د. أحمد" 
+                      value={newTeacher} 
+                      onChange={(e) => setNewTeacher(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">رقم أو اسم القاعة</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: 3 أو قاعة المختبر" 
+                      value={newRoom} 
+                      onChange={(e) => setNewRoom(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                    />
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsModalOpen(false)}
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium py-3 rounded-xl transition"
+                    >
+                      إلغاء
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-600/30"
+                    >
+                      حفظ الحصة وإضافتها للجدول ✨
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* استعراض الجدول في لوحة الإدارة */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <h2 className="text-lg font-semibold text-white mb-4">📚 الحصص المسجلة ليوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center justify-between">
+              <span>📚 الحصص المسجلة ليوم {DAYS.find(d => d.id === selectedDay)?.name}</span>
+              <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl">
+                {schedule[selectedDay]?.length || 0} دروس مسجلة
+              </span>
+            </h2>
+
             {schedule[selectedDay]?.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-6">لا توجد حصص مسجلة لهذا اليوم بعد.</p>
+              <div className="text-center py-10">
+                <span className="text-3xl">☕</span>
+                <p className="text-xs text-slate-400 mt-2">لا توجد حصص مسجلة لهذا اليوم بعد. اضغط على زر "إضافة حصة جديدة" أعلاه.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {schedule[selectedDay]?.map((period, index) => (
                   <div key={period.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                      <span className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">
+                        {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                      </span>
                       <div>
                         <h3 className="text-sm font-bold text-white">{period.subject}</h3>
                         <p className="text-xs text-slate-400 mt-0.5">⏰ {period.time} | 👨‍🏫 {period.teacher} | 🚪 قاعة {period.room}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleDeletePeriod(selectedDay, period.id)} className="text-rose-400 bg-rose-500/10 p-2 rounded-lg text-xs">🗑️ حذف</button>
+                    <button onClick={() => handleDeletePeriod(selectedDay, period.id)} className="text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 p-2 rounded-lg text-xs transition">
+                      🗑️ حذف
+                    </button>
                   </div>
                 ))}
               </div>
@@ -499,7 +596,7 @@ export default function SmartSchoolTimetable() {
                 {schedule[selectedDay]?.map((period, index) => (
                   <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-inner">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">الدرس {index + 1}</span>
+                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">الدرس {index + 1 < 10 ? `0${index + 1}` : index + 1}</span>
                       <h3 className="text-sm font-bold text-white">{period.subject}</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
