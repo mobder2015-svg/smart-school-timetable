@@ -68,11 +68,24 @@ export default function SmartSchoolTimetable() {
       setSchoolName(savedSchoolName);
       setIsAdminAuthenticated(true);
       
-      // جلب جدول هذه المدرسة بالتحديد من الـ LocalStorage
+      // محاولة استرجاع جدول هذه المدرسة بالتحديد، وإن لم يوجد نبحث عن الجدول القديم العام لعدم ضياع البيانات
       const schoolScheduleKey = `schedule_${savedSchoolName}`;
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
+      const oldGeneralSchedule = localStorage.getItem('schoolTimetableData');
+
       if (savedSchedule) {
         setSchedule(JSON.parse(savedSchedule));
+      } else if (oldGeneralSchedule) {
+        try {
+          const parsedOld = JSON.parse(oldGeneralSchedule);
+          if (parsedOld.schedule) {
+            setSchedule(parsedOld.schedule);
+            // حفظه فوراً بالمفتاح الجديد للمدرسة
+            localStorage.setItem(schoolScheduleKey, JSON.stringify(parsedOld.schedule));
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
   }, []);
@@ -88,13 +101,25 @@ export default function SmartSchoolTimetable() {
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', schoolName);
 
-    // استرجاع جدول هذه المدرسة إن كان موجوداً مسبقاً
     const schoolScheduleKey = `schedule_${schoolName}`;
     const savedSchedule = localStorage.getItem(schoolScheduleKey);
+    const oldGeneralSchedule = localStorage.getItem('schoolTimetableData');
+
     let currentSchedule = schedule;
     if (savedSchedule) {
       currentSchedule = JSON.parse(savedSchedule);
       setSchedule(currentSchedule);
+    } else if (oldGeneralSchedule) {
+      try {
+        const parsedOld = JSON.parse(oldGeneralSchedule);
+        if (parsedOld.schedule) {
+          currentSchedule = parsedOld.schedule;
+          setSchedule(currentSchedule);
+          localStorage.setItem(schoolScheduleKey, JSON.stringify(currentSchedule));
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     const totalPeriods = Object.values(currentSchedule).reduce((acc, curr) => acc + curr.length, 0);
@@ -136,7 +161,6 @@ export default function SmartSchoolTimetable() {
 
     setSchedule(updatedSchedule);
     
-    // حفظ جدول المدرسة باسمها المحدد لضمان عدم ضياعه
     const schoolScheduleKey = `schedule_${schoolName}`;
     localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
 
@@ -311,7 +335,7 @@ export default function SmartSchoolTimetable() {
             </div>
 
             <form onSubmit={handleAddPeriod} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <input type="text" placeholder="اسم المادة" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" required />
+              <input type="text" placeholder="اسم المادة (مثال: رياضيات)" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" required />
               <input type="text" placeholder="الوقت (08:00 - 09:00)" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
               <input type="text" placeholder="أستاذ المادة" value={newTeacher} onChange={(e) => setNewTeacher(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
               <input type="text" placeholder="القاعة" value={newRoom} onChange={(e) => setNewRoom(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500" />
@@ -324,7 +348,7 @@ export default function SmartSchoolTimetable() {
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-white mb-4">📚 الحصص المسجلة ليوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
             {schedule[selectedDay]?.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-6">لا توجد حصص مسجلة لهذا اليوم.</p>
+              <p className="text-sm text-slate-500 text-center py-6">لا توجد حصص مسجلة لهذا اليوم بعد.</p>
             ) : (
               <div className="space-y-3">
                 {schedule[selectedDay]?.map((period, index) => (
