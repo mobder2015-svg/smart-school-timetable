@@ -354,11 +354,11 @@ export default function SmartSchoolTimetable() {
               ))}
             </div>
 
-            {/* الحصص الـ 6 مع تكبير وتوضيح اسم المادة ليصبح بارزاً وواضحاً */}
+            {/* الحصص الـ 6 مع اسم المادة في المنتصف بخط كبير وواضح وبمزيج أبيض وذهبي */}
             <div className="space-y-4 pt-2">
               {schedule[selectedDay]?.map((period) => (
                 <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
-                  {/* رأس الكرت: اسم الدرس واسم المادة بشكل أكبر وأوضح */}
+                  {/* رأس الكرت */}
                   <div className="flex items-center justify-between border-b border-slate-800/90 pb-3">
                     <div className="flex items-center gap-3">
                       <span className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold shadow-md">
@@ -366,14 +366,17 @@ export default function SmartSchoolTimetable() {
                       </span>
                       <h3 className="text-sm font-bold text-slate-300">{period.periodName}</h3>
                     </div>
-                    {/* اسم المادة بحجم أكبر وألوان واضحة جداً */}
-                    <span className="text-base sm:text-lg font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-4 py-1.5 rounded-xl shadow-sm">
+                  </div>
+
+                  {/* اسم المادة في منتصف المستطيل بخط كبير وبارز (لون أبيض ناصع مع لمسة ذهبية) */}
+                  <div className="text-center py-2">
+                    <span className="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide drop-shadow-sm">
                       {period.subject || 'حصة فراغ'}
                     </span>
                   </div>
 
                   {/* تفاصيل الحصة (الوقت، المدرس، القاعة) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs pt-1">
                     <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-xl text-slate-300 flex items-center gap-2">
                       <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white">{period.time || '---'}</span>
                     </div>
@@ -642,12 +645,16 @@ export default function SmartSchoolTimetable() {
 
             <div className="space-y-3">
               {schedule[selectedDay]?.map((period) => (
-                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2 shadow-inner">
+                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-inner">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{period.periodName}</span>
-                    <h3 className="text-base font-bold text-amber-400">{period.subject || 'حصة فراغ'}</h3>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                  <div className="text-center py-1">
+                    <span className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
+                      {period.subject || 'حصة فراغ'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
                     <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || '---'}</div>
                     <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || '---'}</div>
                   </div>
