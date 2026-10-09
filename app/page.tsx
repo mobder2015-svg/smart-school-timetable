@@ -29,7 +29,6 @@ interface SchoolRecord {
   periodsCount: number;
 }
 
-// الهيكل الافتراضي لأي يوم (6 دروس ثابتة)
 const createDefaultDayPeriods = (): Period[] => [
   { id: '1', periodNumber: 1, periodName: 'الدرس الأول', subject: '', time: '08:00 - 08:45', teacher: '', room: '' },
   { id: '2', periodNumber: 2, periodName: 'الدرس الثاني', subject: '', time: '08:45 - 09:30', teacher: '', room: '' },
@@ -40,13 +39,13 @@ const createDefaultDayPeriods = (): Period[] => [
 ];
 
 export default function SmartSchoolTimetable() {
-  const [viewMode, setViewMode] = useState<'admin' | 'student' | 'super-admin'>('admin');
+  // وسائط التنقل: 'login' (تسجيل دخول المدرسة) | 'editor' (شاشة تعبئة الجدول الاسبوعي) | 'dashboard' (واجهة المدرسة الرئيسية) | 'student' (معاينة الطالب) | 'super-admin' (الأدمن العام)
+  const [currentView, setCurrentView] = useState<'login' | 'editor' | 'dashboard' | 'student' | 'super-admin'>('login');
   
   const [governorate, setGovernorate] = useState('ميسان');
   const [directorate, setDirectorate] = useState('مديرية تربية ميسان');
   const [schoolName, setSchoolName] = useState('');
   const [password, setPassword] = useState('');
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   const [superAdminPass, setSuperAdminPass] = useState('');
@@ -55,7 +54,7 @@ export default function SmartSchoolTimetable() {
 
   const [selectedDay, setSelectedDay] = useState('sunday');
   
-  // جدول الأسبوع المكون من 6 دروس لكل يوم افتراضياً
+  // جدول الأسبوع الكامل
   const [schedule, setSchedule] = useState<Record<string, Period[]>>({
     sunday: createDefaultDayPeriods(),
     monday: createDefaultDayPeriods(),
@@ -75,7 +74,6 @@ export default function SmartSchoolTimetable() {
 
     if (savedAdmin === 'true' && savedSchoolName) {
       setSchoolName(savedSchoolName);
-      setIsAdminAuthenticated(true);
       
       const schoolScheduleKey = `schedule_${savedSchoolName}`;
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
@@ -83,7 +81,6 @@ export default function SmartSchoolTimetable() {
       if (savedSchedule) {
         try {
           const parsed = JSON.parse(savedSchedule);
-          // دمج التأكد من وجود 6 دروس لكل يوم
           const normalized: Record<string, Period[]> = {};
           DAYS.forEach(day => {
             if (parsed[day.id] && Array.isArray(parsed[day.id])) {
@@ -97,17 +94,17 @@ export default function SmartSchoolTimetable() {
           console.error(e);
         }
       }
+      setCurrentView('dashboard'); // إذا كان مسجلاً مسبقاً، اذهب لواجهة المدرسة الرئيسية مباشرة
     }
   }, []);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolName.trim() || !password.trim()) {
       setLoginError('يرجى إدخال اسم المدرسة وكلمة المرور');
       return;
     }
     
-    setIsAdminAuthenticated(true);
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', schoolName);
 
@@ -133,7 +130,6 @@ export default function SmartSchoolTimetable() {
       }
     }
 
-    // حساب إجمالي الحصص المملوءة
     const totalPeriods = Object.values(currentSchedule).reduce(
       (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
     );
@@ -154,32 +150,32 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
     setLoginError('');
+    setCurrentView('dashboard'); // الانتقال التلقائي لواجهة المدرسة الرئيسية بعد الدخول
   };
 
-  // تحديث حقل معين لأحد الـ 6 دروس
-  const handlePeriodChange = (periodId: string, field: keyof Period, value: string) => {
-    const updatedDayPeriods = schedule[selectedDay].map(p => {
+  const handlePeriodFieldChange = (dayId: string, periodId: string, field: keyof Period, value: string) => {
+    const updatedDayPeriods = schedule[dayId].map(p => {
       if (p.id === periodId) {
         return { ...p, [field]: value };
       }
       return p;
     });
 
-    const updatedSchedule = {
+    setSchedule({
       ...schedule,
-      [selectedDay]: updatedDayPeriods,
-    };
+      [dayId]: updatedDayPeriods,
+    });
+  };
 
-    setSchedule(updatedSchedule);
-
-    // حفظ تلقائي في الـ LocalStorage
+  // زر حفظ جدول المدرسة بالكامل والانتقال التلقائي لواجهة المدرسة الرئيسية
+  const handleSaveFullSchedule = () => {
     const schoolScheduleKey = `schedule_${schoolName}`;
-    localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
+    localStorage.setItem(schoolScheduleKey, JSON.stringify(schedule));
 
-    // تحديث السجل العام
-    const totalPeriods = Object.values(updatedSchedule).reduce(
+    const totalPeriods = Object.values(schedule).reduce(
       (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
     );
+
     const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
     const updatedSchoolsList = existingSchools.map(s => {
       if (s.schoolName === schoolName) {
@@ -189,12 +185,24 @@ export default function SmartSchoolTimetable() {
     });
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
+
+    setCurrentView('dashboard'); // الانتقال التلقائي لواجهة المدرسة الرئيسية
+  };
+
+  // تصفير أو حذف جدول يوم معين
+  const handleClearDay = (dayId: string) => {
+    if (confirm(`هل أنت متأكد من رغبتك في تفريغ جدول يوم ${DAYS.find(d => d.id === dayId)?.name}؟`)) {
+      setSchedule({
+        ...schedule,
+        [dayId]: createDefaultDayPeriods(),
+      });
+    }
   };
 
   const handleLogout = () => {
-    setIsAdminAuthenticated(false);
     localStorage.removeItem('isAdminAuthenticated');
     localStorage.removeItem('currentSchoolName');
+    setCurrentView('login');
   };
 
   const handleSuperAdminLogin = (e: React.FormEvent) => {
@@ -209,17 +217,18 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
       
-      {viewMode === 'admin' && !isAdminAuthenticated && (
+      {/* 1. صفحة تسجيل دخول المدرسة */}
+      {currentView === 'login' && (
         <div className="max-w-md mx-auto mt-10 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
-              🔒
+              🏫
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">بوابة دخول المدارس الآمنة</h1>
-            <p className="text-sm text-slate-400">أدخل بيانات المدرسة وكلمة المرور الخاصة لإدارة الجدول</p>
+            <h1 className="text-2xl font-bold text-white mb-2">بوابة إدارة المدرسية الآمنة</h1>
+            <p className="text-sm text-slate-400">سجل دخولك لإنشاء وتعديل جدول الحصص الأسبوعي</p>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="space-y-4">
+          <form onSubmit={handleSchoolLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-amber-400 mb-1">📍 المحافظة</label>
               <select 
@@ -251,7 +260,7 @@ export default function SmartSchoolTimetable() {
                 value={schoolName} 
                 onChange={(e) => setSchoolName(e.target.value)}
                 className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                placeholder="مثال: اعدادية المجد للبنين"
+                placeholder="مثال: اعدادية اليمامة للبنين"
                 required
               />
             </div>
@@ -274,48 +283,131 @@ export default function SmartSchoolTimetable() {
               type="submit"
               className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium py-3.5 rounded-xl shadow-lg transition"
             >
-              تسجيل الدخول الآمن 🛡️
+              تسجيل الدخول والبدء 🚀
             </button>
           </form>
 
-          <div className="mt-6 flex items-center justify-between text-xs pt-4 border-t border-slate-800">
-            <button onClick={() => setViewMode('student')} className="text-indigo-400 hover:underline">
-              🎓 عرض جدول الطلاب
-            </button>
-            <button onClick={() => setViewMode('super-admin')} className="text-amber-400 hover:underline font-semibold">
-              ⭐ لوحة تحكم الأدمن العام
+          <div className="mt-6 text-center pt-4 border-t border-slate-800">
+            <button onClick={() => setCurrentView('super-admin')} className="text-xs text-amber-400 hover:underline font-semibold">
+              ⭐ دخول لوحة تحكم الأدمن العام
             </button>
           </div>
         </div>
       )}
 
-      {viewMode === 'admin' && isAdminAuthenticated && (
+      {/* 2. واجهة المدرسة الرئيسية (Dashboard) بعد تسجيل الدخول */}
+      {currentView === 'dashboard' && (
         <div className="max-w-4xl mx-auto space-y-6">
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <span className="text-xs bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20">لوحة تحكم الإدارة</span>
+              <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">لوحة تحكم المدرسة النشطة</span>
               <h1 className="text-2xl font-bold text-white mt-2">{schoolName}</h1>
               <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
               <button 
-                onClick={() => setViewMode('student')}
-                className="flex-1 sm:flex-none bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-600/35 transition"
+                onClick={() => setCurrentView('editor')}
+                className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
+              >
+                <span>✏️</span> تعديل / إنشاء الجدول الأسبوعي
+              </button>
+              <button 
+                onClick={() => setCurrentView('student')}
+                className="flex-1 sm:flex-none bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-600/35 transition"
               >
                 🎓 معاينة واجهة الطالب
               </button>
               <button 
                 onClick={handleLogout}
-                className="bg-rose-600/20 border border-rose-500/30 text-rose-400 px-4 py-2 rounded-xl text-sm font-medium hover:bg-rose-600/35 transition"
+                className="bg-rose-600/20 border border-rose-500/30 text-rose-400 px-3.5 py-2.5 rounded-xl text-xs font-medium hover:bg-rose-600/35 transition"
               >
                 خروج
               </button>
             </div>
           </div>
 
+          {/* استعراض الجدول المعتمد في الواجهة الرئيسية للمدرسة */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">📅 جدول الحصص الأسبوعي المعتمد</h2>
+                <p className="text-xs text-slate-400 mt-0.5">هذا الجدول ظاهر حالياً لطلبة المدرسة</p>
+              </div>
+              <button 
+                onClick={() => setCurrentView('editor')}
+                className="text-xs text-indigo-400 hover:underline bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl"
+              >
+                تعديل الجدول ⚙️
+              </button>
+            </div>
+
+            {/* أيام الأسبوع للاستعراض */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {DAYS.map((day) => (
+                <button
+                  key={day.id}
+                  onClick={() => setSelectedDay(day.id)}
+                  className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
+                    selectedDay === day.id 
+                      ? 'bg-indigo-600 text-white shadow-md' 
+                      : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
+                  }`}
+                >
+                  {day.name}
+                </button>
+              ))}
+            </div>
+
+            {/* حصص اليوم المختار */}
+            <div className="space-y-3 pt-2">
+              {schedule[selectedDay]?.map((period) => (
+                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">
+                      0{period.periodNumber}
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">{period.subject || <span className="text-slate-500 font-normal">حصة فراغ</span>}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">⏰ {period.time || '---'} | 👨‍🏫 {period.teacher || '---'} | 🚪 قاعة {period.room || '---'}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs bg-slate-900 border border-slate-800 text-slate-300 px-3 py-1 rounded-xl">
+                    {period.periodName}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. شاشة تعديل الجدول الأسبوعي (Editor) */}
+      {currentView === 'editor' && (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-white">✏️ محرر الجدول الأسبوعي</h1>
+              <p className="text-xs text-slate-400 mt-0.5">اختر اليوم، املأ الحصص الـ 6، ثم اضغط حفظ الجدول لينتقل تلقائياً للواجهة</p>
+            </div>
+            <button 
+              onClick={() => setCurrentView('dashboard')}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl border border-slate-700"
+            >
+              إلغاء والعودة ↩️
+            </button>
+          </div>
+
           {/* شريط الأيام */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <h2 className="text-sm font-semibold text-white">اختر اليوم لتعبئة وتعديل الحصص الـ 6:</h2>
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-xs font-semibold text-slate-300">اختر اليوم لتعديل حصصه:</h2>
+              <button 
+                onClick={() => handleClearDay(selectedDay)}
+                className="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl text-xs hover:bg-rose-500/20 transition"
+              >
+                🗑️ تفريغ جدول هذا اليوم
+              </button>
+            </div>
             <div className="flex gap-2 overflow-x-auto pb-2">
               {DAYS.map((day) => (
                 <button
@@ -333,40 +425,31 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* الحقول الـ 6 الثابتة للدرس */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>📚</span> جدول الحصص الـ 6 ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
-              </h2>
-              <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-xl font-medium">
-                التعديل يتم ويحفظ تلقائياً ✨
-              </span>
-            </div>
+          {/* حقول الحصص الـ 6 لليوم المختار */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+              <span>📝</span> تعبئة حصص يوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
+            </h2>
 
             <div className="space-y-4">
               {schedule[selectedDay]?.map((period) => (
                 <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
-                  {/* شريط عنوان الدرس */}
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-extrabold">
-                        0{period.periodNumber}
-                      </span>
-                      <h3 className="text-sm font-bold text-white">{period.periodName}</h3>
-                    </div>
+                  <div className="flex items-center gap-2.5 border-b border-slate-800/80 pb-2">
+                    <span className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-extrabold">
+                      0{period.periodNumber}
+                    </span>
+                    <h3 className="text-sm font-bold text-white">{period.periodName}</h3>
                   </div>
 
-                  {/* حقول الإدخال الأربعة للدرس */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-[11px] font-medium text-slate-400 mb-1">اسم المادة</label>
                       <input 
                         type="text" 
                         value={period.subject} 
-                        onChange={(e) => handlePeriodChange(period.id, 'subject', e.target.value)}
+                        onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)}
                         placeholder="مثال: رياضيات" 
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
                       />
                     </div>
 
@@ -375,9 +458,9 @@ export default function SmartSchoolTimetable() {
                       <input 
                         type="text" 
                         value={period.time} 
-                        onChange={(e) => handlePeriodChange(period.id, 'time', e.target.value)}
+                        onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'time', e.target.value)}
                         placeholder="08:00 - 08:45" 
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
                       />
                     </div>
 
@@ -386,9 +469,9 @@ export default function SmartSchoolTimetable() {
                       <input 
                         type="text" 
                         value={period.teacher} 
-                        onChange={(e) => handlePeriodChange(period.id, 'teacher', e.target.value)}
+                        onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)}
                         placeholder="أ. علي" 
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
                       />
                     </div>
 
@@ -397,20 +480,31 @@ export default function SmartSchoolTimetable() {
                       <input 
                         type="text" 
                         value={period.room} 
-                        onChange={(e) => handlePeriodChange(period.id, 'room', e.target.value)}
+                        onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'room', e.target.value)}
                         placeholder="5" 
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
                       />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* زر حفظ الجدول والانتقال التلقائي للواجهة الرئيسية */}
+            <div className="pt-4">
+              <button 
+                onClick={handleSaveFullSchedule}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-600/30 transition flex items-center justify-center gap-2 text-sm"
+              >
+                <span>💾</span> حفظ الجدول بالكامل والانتقال إلى واجهة المدرسة الرئيسية ✨
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {viewMode === 'super-admin' && (
+      {/* 4. لوحة تحكم الأدمن العام (Super Admin) */}
+      {currentView === 'super-admin' && (
         <div className="max-w-2xl mx-auto space-y-6">
           {!isSuperAuthenticated ? (
             <div className="bg-slate-900/90 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
@@ -437,8 +531,8 @@ export default function SmartSchoolTimetable() {
               </form>
 
               <div className="mt-4 text-center">
-                <button onClick={() => setViewMode('admin')} className="text-xs text-slate-400 hover:underline">
-                  ⬅️ العودة لبوابة دخول المدارس
+                <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:underline">
+                  ⬅️ العودة لبوابة تسجيل الدخول
                 </button>
               </div>
             </div>
@@ -495,7 +589,7 @@ export default function SmartSchoolTimetable() {
               </div>
 
               <div className="text-center">
-                <button onClick={() => setViewMode('admin')} className="text-xs text-slate-400 hover:text-white underline">
+                <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:text-white underline">
                   ⬅️ العودة للصفحة الرئيسية
                 </button>
               </div>
@@ -504,7 +598,8 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {viewMode === 'student' && (
+      {/* 5. واجهة الطالب */}
+      {currentView === 'student' && (
         <div className="max-w-md mx-auto space-y-4">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 text-center shadow-xl">
             <div className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full mb-3 font-medium">بوابة الطالب الرسمية ✨</div>
@@ -531,7 +626,7 @@ export default function SmartSchoolTimetable() {
             <div className="flex items-center justify-between mb-4 px-1">
               <span className="text-sm font-bold text-white">جدول يوم: {DAYS.find(d => d.id === selectedDay)?.name}</span>
               <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">
-                {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} دروس نشطة
+                {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} دروس
               </span>
             </div>
 
@@ -540,15 +635,15 @@ export default function SmartSchoolTimetable() {
                 <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2 shadow-inner">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{period.periodName}</span>
-                    <h3 className="text-sm font-bold text-white">{period.subject || 'حصة فراغ / غير محددة'}</h3>
+                    <h3 className="text-sm font-bold text-white">{period.subject || 'حصة فراغ'}</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                    <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || 'غير محدد'}</div>
-                    <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || 'غير محدد'}</div>
+                    <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || '---'}</div>
+                    <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || '---'}</div>
                   </div>
                   <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
                     <span>🚪 القاعة:</span>
-                    <span className="font-semibold text-white">{period.room || 'غير محددة'}</span>
+                    <span className="font-semibold text-white">{period.room || '---'}</span>
                   </div>
                 </div>
               ))}
@@ -556,7 +651,7 @@ export default function SmartSchoolTimetable() {
           </div>
 
           <div className="text-center pt-2">
-            <button onClick={() => setViewMode('admin')} className="text-xs text-slate-400 hover:text-white underline">⚙️ العودة للإدارة</button>
+            <button onClick={() => setCurrentView('dashboard')} className="text-xs text-slate-400 hover:text-white underline">⚙️ العودة لواجهة المدرسة</button>
           </div>
         </div>
       )}
