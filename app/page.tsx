@@ -50,7 +50,6 @@ export default function SmartSchoolTimetable() {
     thursday: [],
   });
 
-  // حالة النافذة المنبثقة لإضافة حصة جديدة
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newTime, setNewTime] = useState('');
@@ -175,7 +174,6 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
 
-    // تصفير الحقول وإغلاق النافذة المنبثقة تلقائياً
     setNewSubject('');
     setNewTime('');
     setNewTeacher('');
@@ -317,7 +315,7 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* شريط الأيام واختيار زر الإضافة */}
+          {/* شريط الأيام وزر الإضافة */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-sm font-semibold text-white">اختر اليوم لعرض وتعديل الحصص:</h2>
@@ -346,10 +344,10 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* نافذة منبثقة (Modal) لإضافة حصة جديدة عند الضغط على الزر */}
+          {/* نافذة الإضافة (Modal) */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <span>📚</span> إضافة حصة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
@@ -428,36 +426,54 @@ export default function SmartSchoolTimetable() {
             </div>
           )}
 
-          {/* استعراض الجدول في لوحة الإدارة */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center justify-between">
-              <span>📚 الحصص المسجلة ليوم {DAYS.find(d => d.id === selectedDay)?.name}</span>
+          {/* جدول الحصص مقسم على شكل كرتات وحقول احترافية */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <span>📚</span> الحصص المسجلة ليوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
+              </h2>
               <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl">
                 {schedule[selectedDay]?.length || 0} دروس مسجلة
               </span>
-            </h2>
+            </div>
 
             {schedule[selectedDay]?.length === 0 ? (
-              <div className="text-center py-10">
-                <span className="text-3xl">☕</span>
+              <div className="text-center py-12">
+                <span className="text-4xl">☕</span>
                 <p className="text-xs text-slate-400 mt-2">لا توجد حصص مسجلة لهذا اليوم بعد. اضغط على زر "إضافة حصة" أعلاه.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {schedule[selectedDay]?.map((period, index) => (
-                  <div key={period.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">
-                        {index + 1 < 10 ? `0${index + 1}` : index + 1}
-                      </span>
-                      <div>
-                        <h3 className="text-sm font-bold text-white">{period.subject}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">⏰ {period.time} | 👨‍🏫 {period.teacher} | 🚪 قاعة {period.room}</p>
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-md transition hover:border-indigo-500/40">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shadow-inner">
+                          {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                        </span>
+                        <h3 className="text-base font-bold text-white">{period.subject}</h3>
+                      </div>
+                      <button 
+                        onClick={() => handleDeletePeriod(selectedDay, period.id)} 
+                        className="text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5"
+                      >
+                        <span>🗑️</span> حذف
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="bg-slate-900/90 border border-slate-800/60 p-2.5 rounded-xl text-slate-300 flex items-center gap-2">
+                        <span>⏰</span> <span className="font-medium text-white">{period.time}</span>
+                      </div>
+                      <div className="bg-slate-900/90 border border-slate-800/60 p-2.5 rounded-xl text-slate-300 flex items-center gap-2">
+                        <span>👨‍🏫</span> <span className="font-medium text-white">{period.teacher}</span>
                       </div>
                     </div>
-                    <button onClick={() => handleDeletePeriod(selectedDay, period.id)} className="text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 p-2 rounded-lg text-xs transition">
-                      🗑️ حذف
-                    </button>
+
+                    <div className="bg-slate-900/50 border border-slate-800/40 px-3 py-2 rounded-xl text-xs text-slate-400 flex items-center justify-between">
+                      <span>🚪 القاعة الدراسية:</span>
+                      <span className="font-semibold text-white">{period.room}</span>
+                    </div>
                   </div>
                 ))}
               </div>
