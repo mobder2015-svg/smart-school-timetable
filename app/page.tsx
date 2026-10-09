@@ -28,10 +28,8 @@ interface SchoolRecord {
 }
 
 export default function SmartSchoolTimetable() {
-  // وسائط التنقل بين الصفحات: 'admin' (المدرسة) | 'student' (الطالب) | 'super-admin' (أدمن المنصة العام)
   const [viewMode, setViewMode] = useState<'admin' | 'student' | 'super-admin'>('admin');
   
-  // بيانات المدرسة الحالية
   const [governorate, setGovernorate] = useState('ميسان');
   const [directorate, setDirectorate] = useState('مديرية تربية ميسان');
   const [schoolName, setSchoolName] = useState('');
@@ -39,12 +37,10 @@ export default function SmartSchoolTimetable() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // بيانات الأدمن العام (Super Admin)
   const [superAdminPass, setSuperAdminPass] = useState('');
   const [isSuperAuthenticated, setIsSuperAuthenticated] = useState(false);
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
-  // الجدول الدراسي
   const [selectedDay, setSelectedDay] = useState('sunday');
   const [schedule, setSchedule] = useState<Record<string, Period[]>>({
     sunday: [],
@@ -54,35 +50,33 @@ export default function SmartSchoolTimetable() {
     thursday: [],
   });
 
-  // حقول إضافة حصة
   const [newSubject, setNewSubject] = useState('');
   const [newTime, setNewTime] = useState('');
   const [newTeacher, setNewTeacher] = useState('');
   const [newRoom, setNewRoom] = useState('');
 
-  // تحميل البيانات المحفوظة محلياً وتسجيل المدارس
   useEffect(() => {
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
-    const savedData = localStorage.getItem('schoolTimetableData');
-    
-    // جلب قائمة المدارس المسجلة للمنصة
+    const savedSchoolName = localStorage.getItem('currentSchoolName');
     const schoolsList = localStorage.getItem('globalRegisteredSchools');
+    
     if (schoolsList) {
       setRegisteredSchools(JSON.parse(schoolsList));
     }
 
-    if (savedAdmin === 'true' && savedData) {
-      const parsed = JSON.parse(savedData);
-      setSchoolName(parsed.schoolName || '');
-      setGovernorate(parsed.governorate || 'ميسان');
-      setDirectorate(parsed.directorate || 'مديرية تربية ميسان');
-      setSchedule(parsed.schedule || schedule);
+    if (savedAdmin === 'true' && savedSchoolName) {
+      setSchoolName(savedSchoolName);
       setIsAdminAuthenticated(true);
-      setViewMode('admin');
+      
+      // جلب جدول هذه المدرسة بالتحديد من الـ LocalStorage
+      const schoolScheduleKey = `schedule_${savedSchoolName}`;
+      const savedSchedule = localStorage.getItem(schoolScheduleKey);
+      if (savedSchedule) {
+        setSchedule(JSON.parse(savedSchedule));
+      }
     }
   }, []);
 
-  // تسجيل دخول المدرسة وحفظها في السجل العام للمنصة
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolName.trim() || !password.trim()) {
@@ -92,14 +86,19 @@ export default function SmartSchoolTimetable() {
     
     setIsAdminAuthenticated(true);
     localStorage.setItem('isAdminAuthenticated', 'true');
-    
-    const dataToSave = { schoolName, governorate, directorate, schedule };
-    localStorage.setItem('schoolTimetableData', JSON.stringify(dataToSave));
+    localStorage.setItem('currentSchoolName', schoolName);
 
-    // حساب إجمالي الحصص
-    const totalPeriods = Object.values(schedule).reduce((acc, curr) => acc + curr.length, 0);
+    // استرجاع جدول هذه المدرسة إن كان موجوداً مسبقاً
+    const schoolScheduleKey = `schedule_${schoolName}`;
+    const savedSchedule = localStorage.getItem(schoolScheduleKey);
+    let currentSchedule = schedule;
+    if (savedSchedule) {
+      currentSchedule = JSON.parse(savedSchedule);
+      setSchedule(currentSchedule);
+    }
 
-    // تحديث السجل العام للمدارس المسجلة
+    const totalPeriods = Object.values(currentSchedule).reduce((acc, curr) => acc + curr.length, 0);
+
     const newSchoolRecord: SchoolRecord = {
       id: schoolName.toLowerCase().replace(/\s+/g, '-'),
       schoolName,
@@ -110,13 +109,11 @@ export default function SmartSchoolTimetable() {
     };
 
     const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    // تحديث أو إضافة المدرسة للقائمة
     const filtered = existingSchools.filter(s => s.schoolName !== schoolName);
     const updatedSchoolsList = [newSchoolRecord, ...filtered];
     
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
-
     setLoginError('');
   };
 
@@ -139,10 +136,10 @@ export default function SmartSchoolTimetable() {
 
     setSchedule(updatedSchedule);
     
-    const dataToSave = { schoolName, governorate, directorate, schedule: updatedSchedule };
-    localStorage.setItem('schoolTimetableData', JSON.stringify(dataToSave));
+    // حفظ جدول المدرسة باسمها المحدد لضمان عدم ضياعه
+    const schoolScheduleKey = `schedule_${schoolName}`;
+    localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
 
-    // تحديث السجل العام
     const totalPeriods = Object.values(updatedSchedule).reduce((acc, curr) => acc + curr.length, 0);
     const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
     const updatedSchoolsList = existingSchools.map(s => {
@@ -167,19 +164,19 @@ export default function SmartSchoolTimetable() {
       [dayId]: updatedDayPeriods,
     };
     setSchedule(updatedSchedule);
-    const dataToSave = { schoolName, governorate, directorate, schedule: updatedSchedule };
-    localStorage.setItem('schoolTimetableData', JSON.stringify(dataToSave));
+
+    const schoolScheduleKey = `schedule_${schoolName}`;
+    localStorage.setItem(schoolScheduleKey, JSON.stringify(updatedSchedule));
   };
 
   const handleLogout = () => {
     setIsAdminAuthenticated(false);
     localStorage.removeItem('isAdminAuthenticated');
+    localStorage.removeItem('currentSchoolName');
   };
 
-  // تسجيل دخول الأدمن العام (Super Admin)
   const handleSuperAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // كلمة مرور سرية خاصة بك للأدمن العام (يمكنك تغييرها هنا متى شئت، مثلاً admin123)
     if (superAdminPass === 'admin123') {
       setIsSuperAuthenticated(true);
     } else {
@@ -190,7 +187,6 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
       
-      {/* 1. بوابة دخول المدارس */}
       {viewMode === 'admin' && !isAdminAuthenticated && (
         <div className="max-w-md mx-auto mt-10 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-8">
@@ -271,12 +267,11 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 2. لوحة تحكم الإدارة للمدرسة */}
       {viewMode === 'admin' && isAdminAuthenticated && (
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
             <div>
-              <span className="text-xs bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20">لوحة تحكم المدرسة</span>
+              <span className="text-xs bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20">لوحة تحكم الإدارة</span>
               <h1 className="text-2xl font-bold text-white mt-2">{schoolName}</h1>
               <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
             </div>
@@ -296,7 +291,6 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* إضافة حصة جديدة */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <span>➕</span> إضافة حصة ليوم: <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
@@ -327,7 +321,6 @@ export default function SmartSchoolTimetable() {
             </form>
           </div>
 
-          {/* استعراض الجدول */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <h2 className="text-lg font-semibold text-white mb-4">📚 الحصص المسجلة ليوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
             {schedule[selectedDay]?.length === 0 ? (
@@ -352,7 +345,6 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 3. ⭐ لوحة تحكم الأدمن العام (Super Admin Dashboard) الخاصة بك */}
       {viewMode === 'super-admin' && (
         <div className="max-w-2xl mx-auto space-y-6">
           {!isSuperAuthenticated ? (
@@ -362,7 +354,7 @@ export default function SmartSchoolTimetable() {
                   👑
                 </div>
                 <h1 className="text-2xl font-bold text-white mb-1">لوحة تحكم الأدمن العام</h1>
-                <p className="text-xs text-slate-400">مخصصة لمتابعة المدارس المسجلة في المنصة (كلمة المرور الافتراضية: admin123)</p>
+                <p className="text-xs text-slate-400">كلمة المرور الافتراضية: admin123</p>
               </div>
 
               <form onSubmit={handleSuperAdminLogin} className="space-y-4">
@@ -374,7 +366,7 @@ export default function SmartSchoolTimetable() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500"
                   required
                 />
-                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-amber-500/20">
+                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg">
                   دخول لوحة الأدمن العام 🚀
                 </button>
               </form>
@@ -387,7 +379,6 @@ export default function SmartSchoolTimetable() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* إحصائيات عامة */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
                 <div>
                   <span className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20">الإحصائيات العامة للمنصة</span>
@@ -398,7 +389,6 @@ export default function SmartSchoolTimetable() {
                 </button>
               </div>
 
-              {/* بطاقة العدد الإجمالي */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center">
                   <span className="text-2xl font-extrabold text-amber-400">{registeredSchools.length}</span>
@@ -410,7 +400,6 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* جدول المدارس المسجلة */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl">
                 <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                   <span>📋</span> قائمة المدارس المنضمة للمنصة:
@@ -450,7 +439,6 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 4. واجهة الطالب */}
       {viewMode === 'student' && (
         <div className="max-w-md mx-auto space-y-4">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 text-center shadow-xl">
@@ -485,14 +473,18 @@ export default function SmartSchoolTimetable() {
             ) : (
               <div className="space-y-3">
                 {schedule[selectedDay]?.map((period, index) => (
-                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2">
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-inner">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="text-xs font-semibold text-indigo-400">الدرس {index + 1}</span>
+                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">الدرس {index + 1}</span>
                       <h3 className="text-sm font-bold text-white">{period.subject}</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
                       <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time}</div>
                       <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher}</div>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
+                      <span>🚪 القاعة:</span>
+                      <span className="font-semibold text-white">{period.room}</span>
                     </div>
                   </div>
                 ))}
