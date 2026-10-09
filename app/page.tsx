@@ -354,25 +354,30 @@ export default function SmartSchoolTimetable() {
               ))}
             </div>
 
-            {/* الحصص الـ 6 مع اسم المادة في نفس سطر اسم ورقم الدرس */}
+            {/* الحصص الـ 6 مع اسم المادة في منتصف السطر الخاص بالدرس تماماً */}
             <div className="space-y-3.5 pt-2">
               {schedule[selectedDay]?.map((period) => (
                 <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-4 space-y-3 shadow-md">
-                  {/* سطر موحد يجمع رقم الدرس، اسمه، واسم المادة بلون ذهبي/أبيض */}
-                  <div className="flex items-center justify-between border-b border-slate-800/90 pb-2.5">
+                  {/* سطر موحد يوزع العناصر: يمين (الرقم والاسم)، وسط (اسم المادة)، يسار (فراغ للتوازن) */}
+                  <div className="grid grid-cols-3 items-center border-b border-slate-800/90 pb-2.5">
                     <div className="flex items-center gap-3">
                       <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold shadow-md">
                         0{period.periodNumber}
                       </span>
                       <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
                     </div>
-                    {/* اسم المادة في نفس مستوى الدرس وبشكل بارز وفخم */}
-                    <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide">
-                      {period.subject || 'حصة فراغ'}
-                    </span>
+                    
+                    {/* اسم المادة في المنتصف تماماً وبشكل بارز */}
+                    <div className="text-center">
+                      <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide">
+                        {period.subject || 'حصة فراغ'}
+                      </span>
+                    </div>
+
+                    <div></div>
                   </div>
 
-                  {/* تفاصيل الحصة (الوقت، المدرس، القاعة) مرتبة في حقول مدمجة */}
+                  {/* تفاصيل الحصة (الوقت، المدرس، القاعة) */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
                       <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white">{period.time || '---'}</span>
@@ -550,7 +555,7 @@ export default function SmartSchoolTimetable() {
             <div className="space-y-6">
               <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20">الإحصائيات العامة للمنصة</span>
+                  <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full">الإحصائيات العامة للمنصة</span>
                   <h1 className="text-2xl font-bold text-white mt-2">إدارة المدارس المسجلة</h1>
                 </div>
                 <button onClick={() => setIsSuperAuthenticated(false)} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl border border-slate-700">
@@ -643,11 +648,14 @@ export default function SmartSchoolTimetable() {
             <div className="space-y-3">
               {schedule[selectedDay]?.map((period) => (
                 <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-inner">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{period.periodName}</span>
-                    <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
-                      {period.subject || 'حصة فراغ'}
-                    </span>
+                  <div className="grid grid-cols-3 items-center border-b border-slate-800 pb-2">
+                    <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg w-fit">{period.periodName}</span>
+                    <div className="text-center">
+                      <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
+                        {period.subject || 'حصة فراغ'}
+                      </span>
+                    </div>
+                    <div></div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
                     <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || '---'}</div>
