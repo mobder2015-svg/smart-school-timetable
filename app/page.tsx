@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 
 const DAYS = [
-  { id: 'sunday', name: 'الأحد' },
-  { id: 'monday', name: 'الإثنين' },
-  { id: 'tuesday', name: 'الثلاثاء' },
-  { id: 'wednesday', name: 'الأربعاء' },
-  { id: 'thursday', name: 'الخميس' },
+  { id: 'sunday', name: 'الأحد', short: 'أحد' },
+  { id: 'monday', name: 'الإثنين', short: 'إثنين' },
+  { id: 'tuesday', name: 'الثلاثاء', short: 'ثلاثاء' },
+  { id: 'wednesday', name: 'الأربعاء', short: 'أربعاء' },
+  { id: 'thursday', name: 'الخميس', short: 'خميس' },
 ];
 
 const MISSAN_SCHOOLS = [
@@ -367,9 +367,17 @@ export default function SmartSchoolTimetable() {
     }
   };
 
+  const filledPeriodsCount = schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0;
+  const fillPercentage = Math.round((filledPeriodsCount / 6) * 100);
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between" dir="rtl">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
+      {/* خلفية تفاعلية مشعة (Ambient Glow Background) */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-[128px] pointer-events-none -z-10 animate-pulse"></div>
+      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[128px] pointer-events-none -z-10"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[160px] pointer-events-none -z-10"></div>
+
       <datalist id="missan-schools-list">
         {MISSAN_SCHOOLS.map((school, index) => (
           <option key={index} value={school} />
@@ -379,28 +387,28 @@ export default function SmartSchoolTimetable() {
       <div>
         {/* 1. تسجيل الدخول / إنشاء حساب جديد للمدرسة */}
         {currentView === 'login' && (
-          <div className="max-w-md mx-auto mt-8 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="max-w-md mx-auto mt-8 bg-slate-900/80 backdrop-blur-2xl border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative group transition duration-500 hover:border-indigo-500/30">
             <div className="text-center">
-              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+              <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner group-hover:scale-105 transition duration-300">
                 🏫
               </div>
-              <h1 className="text-2xl font-bold text-white mb-1">منصة المدارس الذكية - ميسان</h1>
+              <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 mb-1">منصة المدارس الذكية - ميسان</h1>
               <p className="text-xs text-slate-400">بوابة إدارة وإدراج الجداول الدراسية المركزية</p>
             </div>
 
-            <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
               <button
                 onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                  authTab === 'login' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition duration-300 ${
+                  authTab === 'login' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 🔑 تسجيل الدخول
               </button>
               <button
                 onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                  authTab === 'register' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition duration-300 ${
+                  authTab === 'register' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 ✨ إنشاء حساب جديد
@@ -410,36 +418,36 @@ export default function SmartSchoolTimetable() {
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-amber-400 mb-1">🏷️ اسم المدرسة</label>
+                  <label className="block text-xs font-semibold text-amber-400/90 mb-1.5">🏷️ اسم المدرسة</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
                     value={schoolName} 
                     onChange={(e) => setSchoolName(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                     placeholder="اختر أو اكتب اسم المدرسة (حكومية / أهلية)"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-amber-400 mb-1">🔑 كلمة المرور</label>
+                  <label className="block text-xs font-semibold text-amber-400/90 mb-1.5">🔑 كلمة المرور</label>
                   <input 
                     type="password" 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                     placeholder="أدخل كلمة المرور الخاصة بمدرستك"
                     required
                   />
                 </div>
 
-                {loginError && <p className="text-xs text-rose-500 text-center font-medium bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">{loginError}</p>}
-                {loginSuccess && <p className="text-xs text-emerald-400 text-center font-medium bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
+                {loginError && <p className="text-xs text-rose-400 text-center font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 animate-shake">{loginError}</p>}
+                {loginSuccess && <p className="text-xs text-emerald-400 text-center font-medium bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
 
                 <button 
                   type="submit"
-                  className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+                  className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/25 transition transform active:scale-95 text-sm"
                 >
                   تسجيل الدخول والفتح 🚀
                 </button>
@@ -449,11 +457,11 @@ export default function SmartSchoolTimetable() {
             {authTab === 'register' && (
               <form onSubmit={handleSchoolRegister} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-amber-400 mb-1">📍 المحافظة</label>
+                  <label className="block text-xs font-semibold text-amber-400/90 mb-1.5">📍 المحافظة</label>
                   <select 
                     value={governorate} 
                     onChange={(e) => setGovernorate(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                   >
                     <option value="ميسان">ميسان</option>
                     <option value="بغداد">بغداد</option>
@@ -463,55 +471,55 @@ export default function SmartSchoolTimetable() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">🏫 مديرية التربية</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">🏫 مديرية التربية</label>
                   <input 
                     type="text" 
                     value={directorate} 
                     onChange={(e) => setDirectorate(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                     placeholder="مثال: مديرية تربية ميسان"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-rose-400 mb-1">🏷️ اختر أو اكتب اسم المدرسة (حكومية / أهلية)</label>
+                  <label className="block text-xs font-semibold text-rose-400/90 mb-1.5">🏷️ اختر أو اكتب اسم المدرسة (حكومية / أهلية)</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
                     value={schoolName} 
                     onChange={(e) => setSchoolName(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                     placeholder="اختر من القائمة أو اكتب اسم المدرسة"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-amber-400 mb-1">🔑 تعيين كلمة مرور جديدة</label>
+                  <label className="block text-xs font-semibold text-amber-400/90 mb-1.5">🔑 تعيين كلمة مرور جديدة</label>
                   <input 
                     type="password" 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                     placeholder="تعيين كلمة مرور خاصة بالمدرسة"
                     required
                   />
                 </div>
 
-                {loginError && <p className="text-xs text-rose-500 text-center font-medium bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">{loginError}</p>}
+                {loginError && <p className="text-xs text-rose-400 text-center font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
 
                 <button 
                   type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/25 transition transform active:scale-95 text-sm"
                 >
                   تأكيد وتسجيل المدرسة رسمياً 📝
                 </button>
               </form>
             )}
 
-            <div className="pt-4 border-t border-slate-800 text-center">
-              <button onClick={() => setCurrentView('super-admin')} className="text-xs text-amber-400 hover:underline font-semibold">
+            <div className="pt-4 border-t border-slate-800/80 text-center">
+              <button onClick={() => setCurrentView('super-admin')} className="text-xs text-amber-400/80 hover:text-amber-300 hover:underline font-semibold transition">
                 ⭐ دخول لوحة تحكم الأدمن العام
               </button>
             </div>
@@ -521,20 +529,24 @@ export default function SmartSchoolTimetable() {
         {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
         {currentView === 'dashboard' && (
           <div className="max-w-7xl mx-auto space-y-6">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800/90 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
               <div>
-                <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">لوحة تحكم المدرسة النشطة</span>
-                <h1 className="text-2xl font-bold text-white mt-2">{schoolName}</h1>
+                <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">
+                  ● لوحة تحكم المدرسة النشطة
+                </span>
+                <h1 className="text-2xl font-black text-white mt-2">{schoolName}</h1>
                 <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
               </div>
 
-              <div className="bg-slate-950/90 border border-indigo-500/30 px-5 py-2.5 rounded-2xl shadow-inner flex items-center gap-3">
+              <div className="bg-slate-950/80 border border-indigo-500/30 px-5 py-2.5 rounded-2xl shadow-inner flex items-center gap-3">
                 <span className="text-xl">⏰</span>
                 <div className="text-left" dir="ltr">
                   <div className="text-base font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
                     {currentTime || '00:00:00'}
                   </div>
-                  <div className="text-[10px] text-slate-400 text-center uppercase tracking-widest">
+                  <div className="text-[10px] text-slate-400 text-center uppercase tracking-widest font-semibold">
                     Live Clock
                   </div>
                 </div>
@@ -543,19 +555,19 @@ export default function SmartSchoolTimetable() {
               <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
                 <button 
                   onClick={() => setCurrentView('editor')}
-                  className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
+                  className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition transform active:scale-95 flex items-center justify-center gap-1.5"
                 >
                   <span>✏️</span> تعديل الجدول الأسبوعي
                 </button>
                 <button 
                   onClick={() => setCurrentView('student')}
-                  className="flex-1 sm:flex-none bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-600/35 transition"
+                  className="flex-1 sm:flex-none bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-500/20 transition"
                 >
                   🎓 معاينة واجهة الطالب
                 </button>
                 <button 
                   onClick={handleLogout}
-                  className="bg-rose-600/20 border border-rose-500/30 text-rose-400 px-3.5 py-2.5 rounded-xl text-xs font-medium hover:bg-rose-600/35 transition"
+                  className="bg-rose-500/10 border border-rose-500/30 text-rose-400 px-3.5 py-2.5 rounded-xl text-xs font-medium hover:bg-rose-500/20 transition"
                 >
                   خروج
                 </button>
@@ -566,20 +578,28 @@ export default function SmartSchoolTimetable() {
               
               {/* العمود الجانبي الأيمن */}
               <div className="lg:col-span-1 space-y-4">
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
-                    <h3 className="text-sm font-bold text-white">حالة الدوام الحالية</h3>
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                      <h3 className="text-xs font-bold text-white">حالة الحصص المباشرة</h3>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">{fillPercentage}% مكتمل</span>
                   </div>
 
-                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-center space-y-2">
-                    <span className="text-xs text-slate-400">الدرس القائم الآن 🔔</span>
+                  <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-4 text-center space-y-2 relative overflow-hidden">
+                    <span className="text-[11px] text-slate-400 font-medium">الدرس القائم الآن 🔔</span>
                     <h4 className="text-base font-black text-amber-400">
                       {schedule[selectedDay]?.[0]?.subject || 'الدرس الأول'}
                     </h4>
-                    <span className="text-[11px] bg-indigo-500/10 text-indigo-400 px-2.5 py-1 rounded-lg inline-block">
+                    <span className="text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-lg inline-block font-mono">
                       ⏰ {schedule[selectedDay]?.[0]?.time || '08:00 - 08:45'}
                     </span>
+                    
+                    {/* Progress indicator bar */}
+                    <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mt-3">
+                      <div className="bg-gradient-to-r from-amber-500 to-indigo-500 h-full rounded-full" style={{ width: `${fillPercentage}%` }}></div>
+                    </div>
                   </div>
 
                   <div className="space-y-2 text-xs">
@@ -590,14 +610,16 @@ export default function SmartSchoolTimetable() {
                     <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
                       <span className="text-slate-400">الحصص المملوءة:</span>
                       <span className="font-bold text-emerald-400">
-                        {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} حصة
+                        {filledPeriodsCount} حصة
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative bg-gradient-to-br from-indigo-900/40 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-3xl p-5 shadow-xl overflow-hidden text-center space-y-3">
-                  <span className="text-3xl">💡</span>
+                <div className="relative bg-gradient-to-br from-indigo-950/50 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-3xl p-5 shadow-xl overflow-hidden text-center space-y-3">
+                  <div className="w-10 h-10 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 flex items-center justify-center mx-auto text-xl">
+                    💡
+                  </div>
                   <h4 className="text-xs font-bold text-indigo-300">المنظومة الرقمية المدرسية</h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     إدارة شاملة ومحدثة مركزياً لجميع جداول ومواعيد المحافظة بدقة وسرعة فائقة.
@@ -607,29 +629,30 @@ export default function SmartSchoolTimetable() {
 
               {/* العمود الأوسط */}
               <div className="lg:col-span-2 space-y-5">
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-6 shadow-xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
                     <div>
                       <h2 className="text-lg font-bold text-white">📅 جدول الحصص الأسبوعي</h2>
                       <p className="text-xs text-slate-400 mt-0.5">الجدول المعتمد المعروض للطلبة</p>
                     </div>
                     <button 
                       onClick={() => setCurrentView('editor')}
-                      className="text-xs text-indigo-400 hover:underline bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl"
+                      className="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition"
                     >
                       تعديل الجدول ⚙️
                     </button>
                   </div>
 
-                  <div className="flex gap-2 overflow-x-auto pb-2">
+                  {/* تبويبات الأيام بتنسيق عصري */}
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
                     {DAYS.map((day) => (
                       <button
                         key={day.id}
                         onClick={() => setSelectedDay(day.id)}
-                        className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
+                        className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-bold text-center transition duration-300 relative ${
                           selectedDay === day.id 
-                            ? 'bg-indigo-600 text-white shadow-md' 
-                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
+                            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30' 
+                            : 'bg-slate-950/80 text-slate-400 border border-slate-800 hover:bg-slate-800/80 hover:text-slate-200'
                         }`}
                       >
                         {day.name}
@@ -638,38 +661,51 @@ export default function SmartSchoolTimetable() {
                   </div>
 
                   <div className="space-y-3.5 pt-2">
-                    {schedule[selectedDay]?.map((period) => (
-                      <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
-                        <div className="grid grid-cols-3 items-center border-b border-slate-800/90 pb-2.5">
-                          <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold shadow-md">
-                              0{period.periodNumber}
-                            </span>
-                            <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
-                          </div>
-                          
-                          <div className="text-center">
-                            <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide">
-                              {period.subject || 'حصة فراغ'}
-                            </span>
+                    {schedule[selectedDay]?.map((period) => {
+                      const isFilled = period.subject.trim() !== '';
+                      return (
+                        <div key={period.id} className={`border rounded-2xl p-4 space-y-3 transition duration-300 ${
+                          isFilled 
+                            ? 'bg-slate-950/80 border-slate-800/90 hover:border-slate-700 shadow-md' 
+                            : 'bg-slate-950/30 border-slate-900 border-dashed text-slate-500'
+                        }`}>
+                          <div className="grid grid-cols-3 items-center border-b border-slate-800/80 pb-2.5">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-md ${
+                                isFilled ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'
+                              }`}>
+                                0{period.periodNumber}
+                              </span>
+                              <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
+                            </div>
+                            
+                            <div className="text-center">
+                              <span className={`text-base sm:text-lg font-black tracking-wide ${
+                                isFilled 
+                                  ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white' 
+                                  : 'text-slate-600 text-xs italic'
+                              }`}>
+                                {period.subject || 'حصة فراغ'}
+                              </span>
+                            </div>
+
+                            <div></div>
                           </div>
 
-                          <div></div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                          <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                            <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white">{period.time || '---'}</span>
-                          </div>
-                          <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                            <span>👨‍🏫</span> <span className="text-slate-400">المدرس:</span> <span className="font-bold text-white">{period.teacher || '---'}</span>
-                          </div>
-                          <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                            <span>🚪</span> <span className="text-slate-400">القاعة:</span> <span className="font-bold text-white">{period.room || '---'}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white font-mono">{period.time || '---'}</span>
+                            </div>
+                            <div className="bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>👨‍🏫</span> <span className="text-slate-400">المدرس:</span> <span className="font-bold text-white">{period.teacher || '---'}</span>
+                            </div>
+                            <div className="bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>🚪</span> <span className="text-slate-400">القاعة:</span> <span className="font-bold text-white">{period.room || '---'}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -747,10 +783,10 @@ export default function SmartSchoolTimetable() {
                   <div className="w-20 h-1.5 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700 mx-auto rounded-b-md shadow-md mt-1"></div>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-4 shadow-xl space-y-2">
                   <button 
                     onClick={() => window.print()}
-                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                    className="w-full bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                   >
                     <span>🖨️</span> طباعة الجدول
                   </button>
@@ -761,7 +797,7 @@ export default function SmartSchoolTimetable() {
                         alert('تم نسخ رابط جدول المدرسة بنجاح!');
                       }
                     }}
-                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                    className="w-full bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                   >
                     <span>🔗</span> مشاركة رابط الجدول
                   </button>
@@ -776,20 +812,20 @@ export default function SmartSchoolTimetable() {
         {/* 3. شاشة تعديل الجدول (Editor) */}
         {currentView === 'editor' && (
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-5 shadow-xl flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-bold text-white">✏️ محرر الجدول الأسبوعي</h1>
                 <p className="text-xs text-slate-400 mt-0.5">اختر اليوم، املأ الحصص الـ 6، ثم اضغط حفظ الجدول لينتقل تلقائياً للواجهة</p>
               </div>
               <button 
                 onClick={() => setCurrentView('dashboard')}
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl border border-slate-700"
+                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl border border-slate-700 transition"
               >
                 إلغاء والعودة ↩️
               </button>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-2xl p-4 shadow-xl space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-xs font-semibold text-slate-300">اختر اليوم لتعديل حصصه:</h2>
                 <button 
@@ -804,9 +840,9 @@ export default function SmartSchoolTimetable() {
                   <button
                     key={day.id}
                     onClick={() => setSelectedDay(day.id)}
-                    className={`flex-1 min-w-[85px] py-3 px-3 rounded-xl text-xs font-bold text-center transition ${
+                    className={`flex-1 min-w-[85px] py-3 px-3 rounded-xl text-xs font-bold text-center transition duration-300 ${
                       selectedDay === day.id 
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40' 
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30' 
                         : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
                     }`}
                   >
@@ -816,14 +852,14 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
               <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
                 <span>📝</span> تعبئة حصص يوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
               </h2>
 
               <div className="space-y-4">
                 {schedule[selectedDay]?.map((period) => (
-                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner hover:border-slate-700 transition">
                     <div className="flex items-center gap-2.5 border-b border-slate-800/80 pb-2">
                       <span className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-extrabold">
                         0{period.periodNumber}
@@ -839,7 +875,7 @@ export default function SmartSchoolTimetable() {
                           value={period.subject} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)}
                           placeholder="مثال: رياضيات" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
 
@@ -850,7 +886,7 @@ export default function SmartSchoolTimetable() {
                           value={period.time} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'time', e.target.value)}
                           placeholder="08:00 - 08:45" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono transition" 
                         />
                       </div>
 
@@ -861,7 +897,7 @@ export default function SmartSchoolTimetable() {
                           value={period.teacher} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)}
                           placeholder="أ. علي" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
 
@@ -872,7 +908,7 @@ export default function SmartSchoolTimetable() {
                           value={period.room} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'room', e.target.value)}
                           placeholder="5" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
                     </div>
@@ -883,7 +919,7 @@ export default function SmartSchoolTimetable() {
               <div className="pt-4">
                 <button 
                   onClick={handleSaveFullSchedule}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-600/30 transition flex items-center justify-center gap-2 text-sm"
+                  className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-600/25 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm"
                 >
                   <span>💾</span> حفظ الجدول بالكامل والانتقال إلى واجهة المدرسة الرئيسية ✨
                 </button>
@@ -896,7 +932,7 @@ export default function SmartSchoolTimetable() {
         {currentView === 'super-admin' && (
           <div className="max-w-2xl mx-auto space-y-6">
             {!isSuperAuthenticated ? (
-              <div className="bg-slate-900/90 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
                     👑
@@ -911,7 +947,7 @@ export default function SmartSchoolTimetable() {
                     value={superAdminPass} 
                     onChange={(e) => setSuperAdminPass(e.target.value)}
                     placeholder="أدخل كلمة مرور الأدمن العام" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition"
                     required
                   />
                   <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg">
@@ -927,7 +963,7 @@ export default function SmartSchoolTimetable() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
                   <div>
                     <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full">الإحصائيات العامة للمنصة</span>
                     <h1 className="text-2xl font-bold text-white mt-2">إدارة المدارس المسجلة</h1>
@@ -948,7 +984,7 @@ export default function SmartSchoolTimetable() {
                   </div>
                 </div>
 
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl">
                   <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                     <span>📋</span> قائمة المدارس المنضمة للمنصة:
                   </h2>
@@ -964,7 +1000,7 @@ export default function SmartSchoolTimetable() {
                             <p className="text-xs text-slate-400 mt-0.5">📍 {school.governorate} - {school.directorate}</p>
                           </div>
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-xl">
+                            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-xl font-mono">
                               {school.periodsCount} حصة مسجلة
                             </span>
                             <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">
@@ -990,11 +1026,11 @@ export default function SmartSchoolTimetable() {
         {/* 5. واجهة الطالب */}
         {currentView === 'student' && (
           <div className="max-w-md mx-auto space-y-4">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 text-center shadow-xl">
+            <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-5 text-center shadow-xl">
               <div className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full mb-3 font-medium">بوابة الطالب الرسمية ✨</div>
               <h1 className="text-xl font-bold text-white mb-1">{schoolName || 'المدرسة'}</h1>
               <p className="text-xs text-slate-400 mb-4">الجدول الدراسي الرسمي المعتمد</p>
-              <button onClick={() => window.print()} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-2.5 rounded-xl border border-slate-700">🖨️ طباعة الجدول</button>
+              <button onClick={() => window.print()} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-2.5 rounded-xl border border-slate-700 transition">🖨️ طباعة الجدول</button>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-2">
@@ -1002,8 +1038,8 @@ export default function SmartSchoolTimetable() {
                 <button
                   key={day.id}
                   onClick={() => setSelectedDay(day.id)}
-                  className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-semibold text-center transition ${
-                    selectedDay === day.id ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/80 text-slate-400 border border-slate-800'
+                  className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-bold text-center transition duration-300 ${
+                    selectedDay === day.id ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-lg' : 'bg-slate-900/80 text-slate-400 border border-slate-800'
                   }`}
                 >
                   {day.name}
@@ -1011,18 +1047,18 @@ export default function SmartSchoolTimetable() {
               ))}
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-xl">
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-4 px-1">
                 <span className="text-sm font-bold text-white">جدول يوم: {DAYS.find(d => d.id === selectedDay)?.name}</span>
-                <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">
+                <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl font-mono">
                   {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} دروس
                 </span>
               </div>
 
               <div className="space-y-3">
                 {schedule[selectedDay]?.map((period) => (
-                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-inner">
-                    <div className="grid grid-cols-3 items-center border-b border-slate-800 pb-2">
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-2.5 shadow-inner">
+                    <div className="grid grid-cols-3 items-center border-b border-slate-800/80 pb-2">
                       <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg w-fit">{period.periodName}</span>
                       <div className="text-center">
                         <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
@@ -1032,7 +1068,7 @@ export default function SmartSchoolTimetable() {
                       <div></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
-                      <div className="bg-slate-900 p-2 rounded-xl">⏰ {period.time || '---'}</div>
+                      <div className="bg-slate-900 p-2 rounded-xl font-mono">⏰ {period.time || '---'}</div>
                       <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || '---'}</div>
                     </div>
                     <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
@@ -1061,7 +1097,7 @@ export default function SmartSchoolTimetable() {
             href="https://wa.me/9647744288885" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="inline-flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl transition font-medium"
+            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl transition font-medium"
           >
             <span>💬</span> للاستفسار واتساب: <span dir="ltr" className="font-mono">07744288885</span>
           </a>
