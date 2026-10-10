@@ -128,6 +128,7 @@ interface Period {
 interface SchoolRecord {
   id: string;
   schoolName: string;
+  phone: string;
   governorate: string;
   directorate: string;
   passwordHash: string;
@@ -158,6 +159,7 @@ export default function SmartSchoolTimetable() {
   const [governorate, setGovernorate] = useState('ميسان');
   const [directorate, setDirectorate] = useState('مديرية تربية ميسان');
   const [schoolName, setSchoolName] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState('');
@@ -242,30 +244,34 @@ export default function SmartSchoolTimetable() {
     setLoginError('');
     setLoginSuccess('');
 
-    const trimmedName = schoolName.trim();
+    const trimmedPhoneOrName = schoolName.trim();
     const trimmedPass = password.trim();
 
-    if (!trimmedName || !trimmedPass) {
-      setLoginError('يرجى إدخال اسم المدرسة وكلمة المرور');
+    if (!trimmedPhoneOrName || !trimmedPass) {
+      setLoginError('يرجى إدخال اسم المدرسة/رقم الهاتف وكلمة المرور');
       return;
     }
 
     const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+    const targetSchool = schoolsList.find(s => 
+      s.schoolName.trim().toLowerCase() === trimmedPhoneOrName.toLowerCase() || 
+      s.phone.trim() === trimmedPhoneOrName
+    );
 
     if (!targetSchool) {
-      setLoginError('اسم المدرسة غير مسجل حالياً. يرجى إنشاء حساب جديد أولاً.');
+      setLoginError('حساب المدرسة غير مسجل! تأكد من البيانات أو أنشئ حساباً جديداً.');
       return;
     }
 
     if (targetSchool.passwordHash.trim() !== trimmedPass) {
-      setLoginError('كلمة المرور غير صحيحة! يرجى التأكد من الرمز السري.');
+      setLoginError('كلمة المرور غير صحيحة!');
       return;
     }
 
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
+    setPhone(targetSchool.phone);
     setGovernorate(targetSchool.governorate);
     setDirectorate(targetSchool.directorate);
 
@@ -286,10 +292,11 @@ export default function SmartSchoolTimetable() {
     setLoginSuccess('');
 
     const trimmedName = schoolName.trim();
+    const trimmedPhone = phone.trim();
     const trimmedPass = password.trim();
 
-    if (!trimmedName || !trimmedPass || !governorate.trim() || !directorate.trim()) {
-      setLoginError('يرجى إكمال جميع حقول التسجيل');
+    if (!trimmedName || !trimmedPhone || !trimmedPass || !governorate.trim() || !directorate.trim()) {
+      setLoginError('يرجى إكمال جميع حقول التسجيل بضمنها رقم الهاتف');
       return;
     }
 
@@ -297,13 +304,14 @@ export default function SmartSchoolTimetable() {
     const existing = schoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
 
     if (existing) {
-      setLoginError('اسم هذه المدرسة مسجل مسبقاً! انتقل لتبويب تسجيل الدخول.');
+      setLoginError('اسم هذه المدرسة مسجل مسبقاً! إذا كنت صاحب المدرسة واجهت مشكلة تواصل مع الدعم.');
       return;
     }
 
     const newSchoolRecord: SchoolRecord = {
       id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
       schoolName: trimmedName,
+      phone: trimmedPhone,
       governorate,
       directorate,
       passwordHash: trimmedPass,
@@ -315,13 +323,13 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
 
-    setLoginSuccess('تم إنشاء حساب المدرسة بنجاح! يمكنك الآن تسجيل الدخول مباشرة.');
+    setLoginSuccess('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول برقم الهاتف أو الاسم.');
     setAuthTab('login');
     setPassword('');
   };
 
   const handleDeleteSchool = (schoolId: string, name: string) => {
-    if (confirm(`هل أنت متأكد من رغبتك في حذف تسجيل مدرسة (${name}) نهائياً من المنصة؟`)) {
+    if (confirm(`هل أنت متأكد من رغبتك في حذف تسجيل مدرسة (${name}) نهائياً؟`)) {
       const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
       const updatedList = schoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
       
@@ -337,6 +345,22 @@ export default function SmartSchoolTimetable() {
       }
 
       alert(`تم حذف حساب مدرسة (${name}) بنجاح.`);
+    }
+  };
+
+  const handleResetPassword = (name: string) => {
+    const newPass = prompt(`أدخل كلمة المرور الجديدة لمدرسة (${name}):`);
+    if (newPass && newPass.trim() !== '') {
+      const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
+      const updatedList = schoolsList.map(s => {
+        if (s.schoolName === name) {
+          return { ...s, passwordHash: newPass.trim() };
+        }
+        return s;
+      });
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
+      setRegisteredSchools(updatedList);
+      alert('تم تحديث كلمة المرور بنجاح!');
     }
   };
 
@@ -454,14 +478,14 @@ export default function SmartSchoolTimetable() {
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة</label>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة أو رقم الهاتف</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
                     value={schoolName} 
                     onChange={(e) => setSchoolName(e.target.value)}
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                    placeholder="اختر أو اكتب اسم المدرسة (حكومية / أهلية)"
+                    placeholder="أدخل اسم المدرسة أو رقم الهاتف المسجل"
                     required
                   />
                 </div>
@@ -527,6 +551,18 @@ export default function SmartSchoolTimetable() {
                     onChange={(e) => setSchoolName(e.target.value)}
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                     placeholder="اختر من القائمة أو اكتب اسم المدرسة"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم هاتف المسؤول (أساسي للتوثيق والاسترجاع)</label>
+                  <input 
+                    type="tel" 
+                    value={phone} 
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition font-mono"
+                    placeholder="مثال: 07700000000"
                     required
                   />
                 </div>
@@ -1059,19 +1095,22 @@ export default function SmartSchoolTimetable() {
                         <div key={school.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div>
                             <h3 className="text-sm font-bold text-white">{school.schoolName}</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">📍 {school.governorate} - {school.directorate}</p>
-                            <p className="text-[11px] text-amber-400/80 mt-1">🔑 الرمز: <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{school.passwordHash}</span></p>
+                            <p className="text-xs text-emerald-400 mt-0.5 font-mono">📱 الهاتف: {school.phone || 'غير مسجل'}</p>
+                            <p className="text-[11px] text-amber-400/80 mt-0.5">🔑 الرمز: <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{school.passwordHash}</span></p>
                           </div>
                           
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-xl font-mono">
-                              {school.periodsCount} حصة
-                            </span>
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
+                            <button 
+                              onClick={() => handleResetPassword(school.schoolName)}
+                              className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-xl transition font-semibold"
+                            >
+                              🔑 تغيير الرمز
+                            </button>
                             <button 
                               onClick={() => handleDeleteSchool(school.id, school.schoolName)}
-                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 px-3 py-1.5 rounded-xl transition text-xs font-semibold"
+                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 px-2.5 py-1.5 rounded-xl transition font-semibold"
                             >
-                              🗑️ حذف الحساب
+                              🗑️ حذف
                             </button>
                           </div>
                         </div>
