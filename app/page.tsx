@@ -194,19 +194,21 @@ export default function SmartSchoolTimetable() {
   const activeSchedule = shiftType === 'morning' ? morningSchedule : afternoonSchedule;
   const setActiveSchedule = shiftType === 'morning' ? setMorningSchedule : setAfternoonSchedule;
 
-  const refreshSchoolsFromStorage = () => {
+  const refreshSchoolsFromStorage = (): SchoolRecord[] => {
     if (typeof window !== 'undefined') {
-      const schoolsList = localStorage.getItem('globalRegisteredSchools');
-      if (schoolsList) {
+      const raw = localStorage.getItem('globalRegisteredSchools');
+      if (raw) {
         try {
-          setRegisteredSchools(JSON.parse(schoolsList));
+          const parsed = JSON.parse(raw);
+          setRegisteredSchools(parsed);
+          return parsed;
         } catch (e) {
           console.error(e);
         }
-      } else {
-        setRegisteredSchools([]);
       }
     }
+    setRegisteredSchools([]);
+    return [];
   };
 
   useEffect(() => {
@@ -239,35 +241,40 @@ export default function SmartSchoolTimetable() {
     return () => clearInterval(timer);
   }, []);
 
+  // 🔑 دالة تسجيل الدخول المحسنة لمنع الأخطاء
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginSuccess('');
 
-    const trimmedPhoneOrName = schoolName.trim();
-    const trimmedPass = password.trim();
+    const inputPhoneOrName = schoolName.trim().toLowerCase();
+    const inputPass = password.trim();
 
-    if (!trimmedPhoneOrName || !trimmedPass) {
-      setLoginError('يرجى إدخال اسم المدرسة/رقم الهاتف وكلمة المرور');
+    if (!inputPhoneOrName || !inputPass) {
+      setLoginError('يرجى إدخال اسم المدرسة أو رقم الموبايل وكلمة المرور');
       return;
     }
 
-    const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const targetSchool = schoolsList.find(s => 
-      s.schoolName.trim().toLowerCase() === trimmedPhoneOrName.toLowerCase() || 
-      s.phone.trim() === trimmedPhoneOrName
-    );
+    // جلب القائمة المباشرة من الذاكرة لتفادي عدم تزامن الـ State
+    const currentSchoolsList = refreshSchoolsFromStorage();
+
+    const targetSchool = currentSchoolsList.find(s => {
+      const nameMatch = s.schoolName.trim().toLowerCase() === inputPhoneOrName;
+      const phoneMatch = s.phone.trim().replace(/\s+/g, '') === inputPhoneOrName.replace(/\s+/g, '');
+      return nameMatch || phoneMatch;
+    });
 
     if (!targetSchool) {
-      setLoginError('حساب المدرسة غير مسجل! تأكد من البيانات أو أنشئ حساباً جديداً.');
+      setLoginError('اسم المدرسة أو رقم الموبايل غير مسجل بالنظام!');
       return;
     }
 
-    if (targetSchool.passwordHash.trim() !== trimmedPass) {
-      setLoginError('كلمة المرور غير صحيحة!');
+    if (targetSchool.passwordHash.trim() !== inputPass) {
+      setLoginError('كلمة المرور غير صحيحة! يرجى التأكد من الرمز السري.');
       return;
     }
 
+    // النجاح والتخزين
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
@@ -286,6 +293,7 @@ export default function SmartSchoolTimetable() {
     setCurrentView('dashboard');
   };
 
+  // 📝 دالة إنشاء الحساب المحسنة
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -296,15 +304,21 @@ export default function SmartSchoolTimetable() {
     const trimmedPass = password.trim();
 
     if (!trimmedName || !trimmedPhone || !trimmedPass || !governorate.trim() || !directorate.trim()) {
-      setLoginError('يرجى إكمال جميع حقول التسجيل بضمنها رقم الهاتف');
+      setLoginError('يرجى تعبئة كافة حقول التسجيل بضمنها رقم الهاتف');
       return;
     }
 
-    const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const existing = schoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+    const currentSchoolsList = refreshSchoolsFromStorage();
 
-    if (existing) {
-      setLoginError('اسم هذه المدرسة مسجل مسبقاً! إذا كنت صاحب المدرسة واجهت مشكلة تواصل مع الدعم.');
+    const existingName = currentSchoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+    if (existingName) {
+      setLoginError('اسم هذه المدرسة مسجل مسبقاً! يمكنك تسجيل الدخول إليها.');
+      return;
+    }
+
+    const existingPhone = currentSchoolsList.find(s => s.phone.trim() === trimmedPhone);
+    if (existingPhone) {
+      setLoginError('رقم الموبايل هذا مسجل مسبقاً لمدرسة أخرى!');
       return;
     }
 
@@ -319,19 +333,19 @@ export default function SmartSchoolTimetable() {
       periodsCount: 0,
     };
 
-    const updatedSchoolsList = [newSchoolRecord, ...schoolsList];
-    setRegisteredSchools(updatedSchoolsList);
+    const updatedSchoolsList = [newSchoolRecord, ...currentSchoolsList];
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
+    setRegisteredSchools(updatedSchoolsList);
 
-    setLoginSuccess('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول برقم الهاتف أو الاسم مباشرة.');
+    setLoginSuccess('✅ تم إنشاء وتثبيت الحساب بنجاح! يمكنك الآن تسجيل الدخول مباشرة.');
     setAuthTab('login');
     setPassword('');
   };
 
   const handleDeleteSchool = (schoolId: string, name: string) => {
     if (confirm(`هل أنت متأكد من رغبتك في حذف تسجيل مدرسة (${name}) نهائياً؟`)) {
-      const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-      const updatedList = schoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
+      const currentSchoolsList = refreshSchoolsFromStorage();
+      const updatedList = currentSchoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
       
       localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
       setRegisteredSchools(updatedList);
@@ -340,10 +354,7 @@ export default function SmartSchoolTimetable() {
       localStorage.removeItem(`schedule_afternoon_${name}`);
       localStorage.removeItem(`announcement_${name}`);
 
-      if (schoolName === name) {
-        handleLogout();
-      }
-
+      if (schoolName === name) handleLogout();
       alert(`تم حذف حساب مدرسة (${name}) بنجاح.`);
     }
   };
@@ -351,11 +362,9 @@ export default function SmartSchoolTimetable() {
   const handleResetPassword = (name: string) => {
     const newPass = prompt(`أدخل كلمة المرور الجديدة لمدرسة (${name}):`);
     if (newPass && newPass.trim() !== '') {
-      const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-      const updatedList = schoolsList.map(s => {
-        if (s.schoolName === name) {
-          return { ...s, passwordHash: newPass.trim() };
-        }
+      const currentSchoolsList = refreshSchoolsFromStorage();
+      const updatedList = currentSchoolsList.map(s => {
+        if (s.schoolName === name) return { ...s, passwordHash: newPass.trim() };
         return s;
       });
       localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
@@ -391,15 +400,15 @@ export default function SmartSchoolTimetable() {
       (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
     );
 
-    const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const updatedSchoolsList = existingSchools.map(s => {
+    const currentSchoolsList = refreshSchoolsFromStorage();
+    const updatedSchoolsList = currentSchoolsList.map(s => {
       if (s.schoolName === schoolName) {
         return { ...s, periodsCount: totalPeriods, lastUpdated: new Date().toLocaleDateString('ar-IQ') };
       }
       return s;
     });
-    setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
+    setRegisteredSchools(updatedSchoolsList);
 
     setCurrentView('dashboard');
   };
@@ -478,7 +487,7 @@ export default function SmartSchoolTimetable() {
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة أو رقم الهاتف</label>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة أو رقم الموبايل</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
@@ -524,9 +533,6 @@ export default function SmartSchoolTimetable() {
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
                   >
                     <option value="ميسان">ميسان</option>
-                    <option value="بغداد">بغداد</option>
-                    <option value="البصرة">البصرة</option>
-                    <option value="ذي قار">ذي قار</option>
                   </select>
                 </div>
 
@@ -796,15 +802,14 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* الشريط الجانبي الأيسر (تم وضع صورة الطالب AI المولد هنا) */}
+              {/* الشريط الجانبي الأيسر */}
               <div className="lg:col-span-1 space-y-4">
                 
-                {/* 🤖 كارت الطالب الافتراضي الاحترافي (AI Avatar) */}
+                {/* 🤖 كارت الطالب AI */}
                 <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
-                  <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl group-hover:bg-indigo-600/35 transition duration-500 pointer-events-none"></div>
+                  <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
 
                   <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-indigo-500/40 shadow-xl bg-slate-950 flex items-center justify-center">
-                    {/* صورة طالب 3D احترافية عالية الدقة مولدة بـ AI */}
                     <img 
                       src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=400" 
                       alt="طالب المدرسة الذكي" 
