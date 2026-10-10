@@ -452,29 +452,30 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* الشريط الجانبي الأيسر: الشاشة التلفزيونية */}
+            {/* الشريط الجانبي الأيسر: الشاشة التلفزيونية المصححة التداخل */}
             <div className="lg:col-span-1 space-y-4">
               
               <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl shadow-indigo-950/50 group">
                 
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-amber-500/20 rounded-3xl blur-md opacity-70 group-hover:opacity-100 transition duration-500"></div>
 
-                <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[260px]">
+                <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[300px]">
                   
-                  <div className="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                      <span className="text-[10px] font-bold tracking-wider text-rose-400 uppercase">LIVE TV Broadcast</span>
+                  {/* شريط علوي مصحح التداخل تماماً */}
+                  <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                      <span className="text-[9px] font-bold tracking-wider text-rose-400 uppercase">LIVE</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md font-mono">4K SMART</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded font-mono">4K</span>
                       {!isEditingAnnouncement && (
                         <button 
                           onClick={() => {
                             setTempAnnouncement(announcement);
                             setIsEditingAnnouncement(true);
                           }}
-                          className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md transition"
+                          className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded transition font-medium"
                         >
                           تعديل ✏️
                         </button>
@@ -482,17 +483,18 @@ export default function SmartSchoolTimetable() {
                     </div>
                   </div>
 
+                  {/* جسم الشاشة مع فراغ داخلي مريح */}
                   <div className="p-4 flex-1 flex flex-col justify-center relative">
                     
                     <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none"></div>
 
                     {isEditingAnnouncement ? (
-                      <div className="space-y-3 z-10">
+                      <div className="space-y-3 z-10 py-1">
                         <textarea 
                           value={tempAnnouncement} 
                           onChange={(e) => setTempAnnouncement(e.target.value)}
                           rows={4}
-                          className="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-sans"
+                          className="w-full bg-slate-900/95 border border-amber-500/40 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-sans"
                           placeholder="اكتب التنبيه أو الإعلان المدرسي هنا..."
                         />
                         <div className="flex gap-2">
@@ -511,21 +513,21 @@ export default function SmartSchoolTimetable() {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3 text-center z-10 py-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400/20 to-amber-600/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-xl text-amber-300 shadow-inner">
+                      <div className="space-y-2.5 text-center z-10 py-3">
+                        <div className="w-9 h-9 bg-gradient-to-br from-amber-400/20 to-amber-600/10 border border-amber-500/30 rounded-xl flex items-center justify-center mx-auto text-lg text-amber-300 shadow-inner">
                           📢
                         </div>
-                        <h4 className="text-xs font-bold text-amber-400 tracking-wide uppercase">إعلان المدرسة الرسمي</h4>
-                        <p className="text-xs font-medium text-slate-200 leading-relaxed bg-slate-900/80 border border-slate-800 p-3 rounded-xl shadow-sm">
+                        <h4 className="text-[11px] font-bold text-amber-400 tracking-wide uppercase">إعلان المدرسة الرسمي</h4>
+                        <p className="text-xs font-medium text-slate-200 leading-relaxed bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-sm">
                           "{announcement}"
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* شريط الإعلان السفلي الثابت والآمن لـ Deployment */}
-                  <div className="bg-gradient-to-r from-indigo-900/90 via-slate-900 to-indigo-950 border-t border-slate-800 p-2 text-[10px] text-slate-300 flex items-center overflow-hidden">
-                    <span className="bg-amber-500 text-slate-950 font-extrabold px-2 py-0.5 rounded mr-2 shrink-0">تنبيه</span>
+                  {/* شريط الإعلان السفلي المتناسق بدون تداخل */}
+                  <div className="bg-slate-900 border-t border-slate-800 px-3 py-2 text-[10px] text-slate-300 flex items-center gap-2">
+                    <span className="bg-amber-500 text-slate-950 font-extrabold px-1.5 py-0.5 rounded text-[9px] shrink-0">تنبيه</span>
                     <p className="font-medium text-amber-200/90 truncate">
                       {announcement}
                     </p>
