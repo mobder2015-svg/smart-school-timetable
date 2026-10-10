@@ -796,77 +796,91 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* الشريط الجانبي الأيسر */}
+              {/* الشريط الجانبي الأيسر (تم وضع صورة الطالب AI المولد هنا) */}
               <div className="lg:col-span-1 space-y-4">
-                <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl shadow-indigo-950/50 group">
-                  <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[300px]">
-                    <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 shrink-0">
+                
+                {/* 🤖 كارت الطالب الافتراضي الاحترافي (AI Avatar) */}
+                <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
+                  <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl group-hover:bg-indigo-600/35 transition duration-500 pointer-events-none"></div>
+
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-indigo-500/40 shadow-xl bg-slate-950 flex items-center justify-center">
+                    {/* صورة طالب 3D احترافية عالية الدقة مولدة بـ AI */}
+                    <img 
+                      src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=400" 
+                      alt="طالب المدرسة الذكي" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                    <span className="absolute bottom-2 bg-indigo-600 text-white text-[9px] px-2 py-0.5 rounded-full font-bold shadow-md">
+                      🤖 AI Student
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-white">المساعد الذكي للجدول</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed px-1">
+                      جاهز لمتابعة حصصك الدراسية وإدارة المواعيد اليومية بكل مرونة.
+                    </p>
+                  </div>
+                </div>
+
+                {/* شاشة التنبيه والإعلان */}
+                <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl">
+                  <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[220px]">
+                    <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
                         <span className="text-[9px] font-bold tracking-wider text-rose-400 uppercase">LIVE</span>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded font-mono">4K</span>
-                        {!isEditingAnnouncement && (
-                          <button 
-                            onClick={() => {
-                              setTempAnnouncement(announcement);
-                              setIsEditingAnnouncement(true);
-                            }}
-                            className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded transition font-medium"
-                          >
-                            تعديل ✏️
-                          </button>
-                        )}
-                      </div>
+                      {!isEditingAnnouncement && (
+                        <button 
+                          onClick={() => {
+                            setTempAnnouncement(announcement);
+                            setIsEditingAnnouncement(true);
+                          }}
+                          className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded transition"
+                        >
+                          تعديل ✏️
+                        </button>
+                      )}
                     </div>
 
-                    <div className="p-4 flex-1 flex flex-col justify-center relative">
+                    <div className="p-3 flex-1 flex flex-col justify-center relative text-center">
                       {isEditingAnnouncement ? (
-                        <div className="space-y-3 z-10 py-1">
+                        <div className="space-y-2 z-10">
                           <textarea 
                             value={tempAnnouncement} 
                             onChange={(e) => setTempAnnouncement(e.target.value)}
-                            rows={4}
-                            className="w-full bg-slate-900/95 border border-amber-500/40 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-sans"
-                            placeholder="اكتب التنبيه أو الإعلان المدرسي هنا..."
+                            rows={3}
+                            className="w-full bg-slate-900 border border-amber-500/40 rounded-xl p-2 text-xs text-white focus:outline-none"
+                            placeholder="اكتب التنبيه هنا..."
                           />
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <button 
                               onClick={handleSaveAnnouncement}
-                              className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition shadow-md"
+                              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1 rounded text-xs transition"
                             >
-                              بث الإعلان 📡
+                              بث
                             </button>
                             <button 
                               onClick={() => setIsEditingAnnouncement(false)}
-                              className="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-xs transition"
+                              className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded text-xs"
                             >
                               إلغاء
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-2.5 text-center z-10 py-3">
-                          <div className="w-9 h-9 bg-gradient-to-br from-amber-400/20 to-amber-600/10 border border-amber-500/30 rounded-xl flex items-center justify-center mx-auto text-lg text-amber-300 shadow-inner">
-                            📢
-                          </div>
-                          <h4 className="text-[11px] font-bold text-amber-400 tracking-wide uppercase">إعلان المدرسة الرسمي</h4>
-                          <p className="text-xs font-medium text-slate-200 leading-relaxed bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-sm">
+                        <div className="space-y-1.5">
+                          <span className="text-base">📢</span>
+                          <h4 className="text-[10px] font-bold text-amber-400 uppercase">إعلان المدرسة الرسمي</h4>
+                          <p className="text-[11px] text-slate-200 bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl">
                             "{announcement}"
                           </p>
                         </div>
                       )}
                     </div>
-
-                    <div className="bg-slate-900 border-t border-slate-800 px-3 py-2 text-[10px] text-slate-300 flex items-center gap-2">
-                      <span className="bg-amber-500 text-slate-950 font-extrabold px-1.5 py-0.5 rounded text-[9px] shrink-0">تنبيه</span>
-                      <p className="font-medium text-amber-200/90 truncate">
-                        {announcement}
-                      </p>
-                    </div>
                   </div>
-                  <div className="w-20 h-1.5 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700 mx-auto rounded-b-md shadow-md mt-1"></div>
                 </div>
 
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
@@ -875,17 +889,6 @@ export default function SmartSchoolTimetable() {
                     className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                   >
                     <span>🖨️</span> طباعة الجدول
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        navigator.clipboard.writeText(window.location.href);
-                        alert('تم نسخ رابط جدول المدرسة بنجاح!');
-                      }
-                    }}
-                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
-                  >
-                    <span>🔗</span> مشاركة رابط الجدول
                   </button>
                 </div>
 
