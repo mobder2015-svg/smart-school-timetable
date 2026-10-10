@@ -53,8 +53,8 @@ export default function SmartSchoolTimetable() {
 
   const [selectedDay, setSelectedDay] = useState('sunday');
   
-  // حالة الإعلان والتعديل عليه
-  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات.');
+  // حالة الإعلان والتعديل
+  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات الرسمية.');
   const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
   const [tempAnnouncement, setTempAnnouncement] = useState('');
 
@@ -448,74 +448,116 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* الشريط الجانبي الأيسر: لوحة الإعلانات المدرسية مع زر التعديل */}
+            {/* الشريط الجانبي الأيسر: لوحة الإعلانات المدرسية بتصميم شاشة تلفزيونية ذكية فاخرة */}
             <div className="lg:col-span-1 space-y-4">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <span>📢</span> لوحة الإعلانات
-                  </h3>
-                  {!isEditingAnnouncement && (
-                    <button 
-                      onClick={() => {
-                        setTempAnnouncement(announcement);
-                        setIsEditingAnnouncement(true);
-                      }}
-                      className="text-xs text-amber-400 hover:underline bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg"
-                    >
-                      تعديل ✏️
-                    </button>
-                  )}
-                </div>
+              
+              {/* إطار الشاشة التلفزيونية */}
+              <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl shadow-indigo-950/50 group">
+                
+                {/* إضاءة تلفزيونية خلفية متوهجة */}
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-amber-500/20 rounded-3xl blur-md opacity-70 group-hover:opacity-100 transition duration-500"></div>
 
-                {isEditingAnnouncement ? (
-                  <div className="space-y-3">
-                    <textarea 
-                      value={tempAnnouncement} 
-                      onChange={(e) => setTempAnnouncement(e.target.value)}
-                      rows={4}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
-                      placeholder="اكتب التنبيه أو الإعلان المدرسي هنا..."
-                    />
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={handleSaveAnnouncement}
-                        className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition"
-                      >
-                        حفظ الإعلان 💾
-                      </button>
-                      <button 
-                        onClick={() => setIsEditingAnnouncement(false)}
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs transition"
-                      >
-                        إلغاء ✕
-                      </button>
+                {/* شاشة العرض الذكية الداخلية */}
+                <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[260px]">
+                  
+                  {/* الشريط العلوي للشاشة التلفزيونية (TV Header) */}
+                  <div className="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                      <span className="text-[10px] font-bold tracking-wider text-rose-400 uppercase">LIVE TV Broadcast</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md font-mono">4K SMART</span>
+                      {!isEditingAnnouncement && (
+                        <button 
+                          onClick={() => {
+                            setTempAnnouncement(announcement);
+                            setIsEditingAnnouncement(true);
+                          }}
+                          className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md transition"
+                        >
+                          تعديل ✏️
+                        </button>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 text-xs text-amber-200 space-y-2">
-                    <p className="leading-relaxed">{announcement}</p>
-                  </div>
-                )}
 
-                <div className="pt-2 space-y-2">
-                  <button 
-                    onClick={() => window.print()}
-                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
-                  >
-                    <span>🖨️</span> طباعة الجدول
-                  </button>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(window.location.href);
-                      alert('تم نسخ رابط جدول المدرسة بنجاح!');
-                    }}
-                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
-                  >
-                    <span>🔗</span> مشاركة رابط الجدول
-                  </button>
+                  {/* جسم الشاشة الرئيسي عرض المحتوى */}
+                  <div className="p-4 flex-1 flex flex-col justify-center relative">
+                    
+                    {/* شفرة التظليل والإنارة التلفزيونية */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none"></div>
+
+                    {isEditingAnnouncement ? (
+                      <div className="space-y-3 z-10">
+                        <textarea 
+                          value={tempAnnouncement} 
+                          onChange={(e) => setTempAnnouncement(e.target.value)}
+                          rows={4}
+                          className="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-sans"
+                          placeholder="اكتب التنبيه أو الإعلان المدرسي هنا..."
+                        />
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={handleSaveAnnouncement}
+                            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition shadow-md"
+                          >
+                            بث الإعلان 📡
+                          </button>
+                          <button 
+                            onClick={() => setIsEditingAnnouncement(false)}
+                            className="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-xs transition"
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 text-center z-10 py-2">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400/20 to-amber-600/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-xl text-amber-300 shadow-inner">
+                          📢
+                        </div>
+                        <h4 className="text-xs font-bold text-amber-400 tracking-wide uppercase">إعلان المدرسة الرسمي</h4>
+                        <p className="text-xs font-medium text-slate-200 leading-relaxed bg-slate-900/80 border border-slate-800 p-3 rounded-xl shadow-sm">
+                          "{announcement}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* شريط الأخبار السفلي التلفزيوني (Ticker Bar) */}
+                  <div className="bg-gradient-to-r from-indigo-900/90 via-slate-900 to-indigo-950 border-t border-slate-800 p-2 text-[10px] text-slate-300 flex items-center overflow-hidden">
+                    <span className="bg-amber-500 text-slate-950 font-extrabold px-2 py-0.5 rounded mr-2 shrink-0">تنبيه</span>
+                    <marquee className="font-medium text-amber-200/90" scrollamount="4">
+                      {announcement}
+                    </marquee>
+                  </div>
+
                 </div>
+
+                {/* قاعدة الشاشة التلفزيونية الفاخرة (TV Stand) */}
+                <div className="w-20 h-1.5 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700 mx-auto rounded-b-md shadow-md mt-1"></div>
               </div>
+
+              {/* أزرار الخدمات السريعة */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
+                <button 
+                  onClick={() => window.print()}
+                  className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                >
+                  <span>🖨️</span> طباعة الجدول
+                </button>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('تم نسخ رابط جدول المدرسة بنجاح!');
+                  }}
+                  className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                >
+                  <span>🔗</span> مشاركة رابط الجدول
+                </button>
+              </div>
+
             </div>
 
           </div>
