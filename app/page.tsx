@@ -124,6 +124,7 @@ interface Period {
   time: string;
   teacher: string;
   room: string;
+  className?: string;
 }
 
 interface SchoolRecord {
@@ -143,12 +144,12 @@ const AFTERNOON_TIMES = ['01:00 - 01:45', '01:45 - 02:30', '02:45 - 03:30', '03:
 const createDefaultDayPeriods = (isAfternoon = false): Period[] => {
   const times = isAfternoon ? AFTERNOON_TIMES : MORNING_TIMES;
   return [
-    { id: '1', periodNumber: 1, periodName: 'الدرس الأول', subject: '', time: times[0], teacher: '', room: '' },
-    { id: '2', periodNumber: 2, periodName: 'الدرس الثاني', subject: '', time: times[1], teacher: '', room: '' },
-    { id: '3', periodNumber: 3, periodName: 'الدرس الثالث', subject: '', time: times[2], teacher: '', room: '' },
-    { id: '4', periodNumber: 4, periodName: 'الدرس الرابع', subject: '', time: times[3], teacher: '', room: '' },
-    { id: '5', periodNumber: 5, periodName: 'الدرس الخامس', subject: '', time: times[4], teacher: '', room: '' },
-    { id: '6', periodNumber: 6, periodName: 'الدرس السادس', subject: '', time: times[5], teacher: '', room: '' },
+    { id: '1', periodNumber: 1, periodName: 'الدرس الأول', subject: '', time: times[0], teacher: '', room: '', className: '' },
+    { id: '2', periodNumber: 2, periodName: 'الدرس الثاني', subject: '', time: times[1], teacher: '', room: '', className: '' },
+    { id: '3', periodNumber: 3, periodName: 'الدرس الثالث', subject: '', time: times[2], teacher: '', room: '', className: '' },
+    { id: '4', periodNumber: 4, periodName: 'الدرس الرابع', subject: '', time: times[3], teacher: '', room: '', className: '' },
+    { id: '5', periodNumber: 5, periodName: 'الدرس الخامس', subject: '', time: times[4], teacher: '', room: '', className: '' },
+    { id: '6', periodNumber: 6, periodName: 'الدرس السادس', subject: '', time: times[5], teacher: '', room: '', className: '' },
   ];
 };
 
@@ -469,31 +470,41 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
-      {/* 🖨️ تخصيص الطباعة لتبدو بشكل مرتب ومدموج في ورقة عرضية واحدة */}
+      {/* 🖨️ تخصيص الطباعة: ورقة واحدة بالعرض (A4 Landscape) تضم كافة الأيام بدون زيادات */}
       <style jsx global>{`
         @media print {
           @page {
-            size: landscape;
-            margin: 5mm;
+            size: A4 landscape;
+            margin: 6mm;
           }
           body {
             background: white !important;
             color: black !important;
+            font-size: 11px !important;
           }
-          /* إخفاء العناصر غير المرغوب فيها عند الطباعة */
-          .no-print, header:not(.printable-header), .sidebar-panel, footer, button {
+          .screen-only, header, .sidebar-panel, footer, button, nav {
             display: none !important;
           }
-          /* إظهار منطقة الجدول بشكل مدموج وواضح للطباعة */
-          .printable-area {
+          .print-container {
             display: block !important;
             width: 100% !important;
-            background: white !important;
             color: black !important;
-            box-shadow: none !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
+          }
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 10px !important;
+          }
+          .print-table th, .print-table td {
+            border: 1.5px solid #000 !important;
+            padding: 6px 4px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+          }
+          .print-table th {
+            background-color: #f1f5f9 !important;
+            font-weight: bold !important;
+            color: black !important;
           }
         }
       `}</style>
@@ -507,7 +518,73 @@ export default function SmartSchoolTimetable() {
         ))}
       </datalist>
 
-      <div>
+      {/* 🖨️ نموذج الطباعة المخصص الشامل لجميع أيام الأسبوع (يظهر فقط أثناء الطباعة) */}
+      <div className="hidden print-container">
+        <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-2">
+          <div className="flex items-center gap-3">
+            {schoolLogo && <img src={schoolLogo} alt="Logo" className="w-14 h-14 object-contain" />}
+            <div>
+              <h1 className="text-xl font-bold">{schoolName || 'اسم المدرسة'}</h1>
+              <p className="text-xs">{governorate} - {directorate}</p>
+            </div>
+          </div>
+          <div className="text-left">
+            <h2 className="text-base font-bold">جدول الحصص الأسبوعي الشامل</h2>
+            <p className="text-xs font-semibold">
+              الدوام: {shiftType === 'morning' ? 'الصباحي ☀️' : 'الظهري (المسائي) 🌙'}
+            </p>
+          </div>
+        </div>
+
+        <table className="print-table">
+          <thead>
+            <tr>
+              <th className="w-24">اليوم / الحصة</th>
+              <th>الدرس الأول</th>
+              <th>الدرس الثاني</th>
+              <th>الدرس الثالث</th>
+              <th>الدرس الرابع</th>
+              <th>الدرس الخامس</th>
+              <th>الدرس السادس</th>
+            </tr>
+          </thead>
+          <tbody>
+            {DAYS.map((day) => {
+              const dayPeriods = activeSchedule[day.id] || [];
+              return (
+                <tr key={day.id}>
+                  <td className="font-bold bg-slate-100">{day.name}</td>
+                  {[1, 2, 3, 4, 5, 6].map((num) => {
+                    const period = dayPeriods.find((p) => p.periodNumber === num);
+                    const subject = period?.subject?.trim();
+                    const className = period?.className?.trim();
+                    return (
+                      <td key={num}>
+                        {subject ? (
+                          <div>
+                            <div className="font-bold text-xs">{subject}</div>
+                            {className && <div className="text-[10px] text-slate-700">{className}</div>}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[10px]">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div className="mt-4 flex justify-between text-[10px] font-bold border-t border-slate-300 pt-2">
+          <span>إدارة المدرسة: ________________</span>
+          <span>الختم الرسمي: ________________</span>
+          <span>إعداد المنظومة الذكية (مبدر الياسري)</span>
+        </div>
+      </div>
+
+      <div className="screen-only">
         {/* 1. تسجيل الدخول / إنشاء حساب جديد */}
         {currentView === 'login' && (
           <div className="max-w-md mx-auto mt-8 bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -696,8 +773,7 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* أزرار اختيار الدوام الصباحي أو الظهري */}
-              <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex items-center gap-2 shadow-inner no-print">
+              <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex items-center gap-2 shadow-inner">
                 <button
                   onClick={() => setShiftType('morning')}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
@@ -720,7 +796,7 @@ export default function SmartSchoolTimetable() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end no-print">
+              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
                 <button 
                   onClick={handleWhatsAppShare}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5"
@@ -752,9 +828,7 @@ export default function SmartSchoolTimetable() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-              
-              {/* العمود الجانبي الأيمن */}
-              <div className="lg:col-span-1 space-y-4 no-print sidebar-panel">
+              <div className="lg:col-span-1 space-y-4 sidebar-panel">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -798,8 +872,8 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* العمود الأوسط - جدول الحصص (مخصص للطباعة بـ printable-area) */}
-              <div className="lg:col-span-2 space-y-5 printable-area">
+              {/* العمود الأوسط - شاشة عرض جدول اليوم بالحاسوب والموبايل */}
+              <div className="lg:col-span-2 space-y-5">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                     <div>
@@ -810,17 +884,17 @@ export default function SmartSchoolTimetable() {
                           {shiftType === 'morning' ? 'الدوام الصباحي' : 'الدوام الظهري'}
                         </span>
                       </h2>
-                      <p className="text-xs text-slate-400 mt-0.5">جدول الحصص الأسبوعي المعروض للطلبة</p>
+                      <p className="text-xs text-slate-400 mt-0.5">تصفح وتعديل حصص اليوم المختارة</p>
                     </div>
                     <button 
                       onClick={() => setCurrentView('editor')}
-                      className="text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition no-print"
+                      className="text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition"
                     >
                       تعديل ⚙️
                     </button>
                   </div>
 
-                  <div className="flex gap-2 overflow-x-auto pb-2 no-print">
+                  <div className="flex gap-2 overflow-x-auto pb-2">
                     {DAYS.map((day) => (
                       <button
                         key={day.id}
@@ -865,6 +939,11 @@ export default function SmartSchoolTimetable() {
                               }`}>
                                 {period.subject || 'حصة فراغ'}
                               </span>
+                              {period.className && (
+                                <span className="block text-[11px] text-indigo-400 font-semibold mt-0.5">
+                                  الصف: {period.className}
+                                </span>
+                              )}
                             </div>
 
                             <div></div>
@@ -889,8 +968,7 @@ export default function SmartSchoolTimetable() {
               </div>
 
               {/* الشريط الجانبي الأيسر */}
-              <div className="lg:col-span-1 space-y-4 no-print sidebar-panel">
-                
+              <div className="lg:col-span-1 space-y-4 sidebar-panel">
                 <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
                   <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -977,7 +1055,7 @@ export default function SmartSchoolTimetable() {
                     onClick={() => window.print()}
                     className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                   >
-                    <span>🖨️</span> طباعة الجدول / PDF
+                    <span>🖨️</span> طباعة الجدول الشامل (A4)
                   </button>
                 </div>
 
@@ -1052,15 +1130,26 @@ export default function SmartSchoolTimetable() {
                       <h3 className="text-sm font-bold text-white">{period.periodName}</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                       <div>
-                        <label className="block text-[11px] font-medium text-slate-400 mb-1">اسم المادة</label>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">المادة</label>
                         <input 
                           type="text" 
                           value={period.subject} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)}
                           placeholder="مثال: رياضيات" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-amber-400 mb-1">الصف / الشعبة</label>
+                        <input 
+                          type="text" 
+                          value={period.className || ''} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)}
+                          placeholder="مثال: الأول متوسط" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
 
@@ -1071,29 +1160,29 @@ export default function SmartSchoolTimetable() {
                           value={period.time} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'time', e.target.value)}
                           placeholder="08:00 - 08:45" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono transition" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono transition" 
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-medium text-slate-400 mb-1">اسم الأستاذ</label>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">الأستاذ</label>
                         <input 
                           type="text" 
                           value={period.teacher} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)}
                           placeholder="أ. علي" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-medium text-slate-400 mb-1">رقم القاعة</label>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">القاعة</label>
                         <input 
                           type="text" 
                           value={period.room} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'room', e.target.value)}
                           placeholder="5" 
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
                     </div>
@@ -1277,6 +1366,9 @@ export default function SmartSchoolTimetable() {
                         <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
                           {period.subject || 'حصة فراغ'}
                         </span>
+                        {period.className && (
+                          <span className="block text-[10px] text-indigo-400 font-medium">الصف: {period.className}</span>
+                        )}
                       </div>
                       <div></div>
                     </div>
@@ -1300,7 +1392,7 @@ export default function SmartSchoolTimetable() {
         )}
       </div>
 
-      <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4 no-print">
+      <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4 screen-only">
         <div>
           <span>إعداد وتصميم المهندس المبرمج مبدر الياسري</span>
         </div>
