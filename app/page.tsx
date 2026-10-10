@@ -10,6 +10,79 @@ const DAYS = [
   { id: 'thursday', name: 'الخميس' },
 ];
 
+// قائمة مدارس محافظة ميسان المعتمدة
+const MISSAN_SCHOOLS = [
+  'اعدادية ابن زيدون للبنين',
+  'اعدادية العمارة للبنين',
+  'اعدادية العمارة للبنات',
+  'اعدادية الارشاد للبنين',
+  'اعدادية الاعتدال للبنين',
+  'اعدادية الاندلس للبنين',
+  'اعدادية البصائر للبنات',
+  'اعدادية البيان للبنين',
+  'اعدادية الزوراء للبنات',
+  'اعدادية الساجدين للبنين',
+  'اعدادية السراج للبنين',
+  'اعدادية الشهيد محمد باقر عامر للبنين',
+  'اعدادية الطيبات للبنات',
+  'اعدادية بطلة كربلاء للبنات',
+  'اعدادية بنت الهدى للبنات',
+  'اعدادية جعفر النقدي للبنين',
+  'اعدادية حسان بن ثابت للبنين',
+  'اعدادية كميت للبنات',
+  'اعدادية كميت للبنين',
+  'اعدادية مهد الحضارات للبنين',
+  'اعدادية ميثم التمار للبنين',
+  'ثانوية ميسان للمتميزين',
+  'ثانوية ميسان للمتميزات',
+  'ثانوية الاباء المختلطة',
+  'ثانوية الاحسان للبنات',
+  'ثانوية الارتقاء للبنات',
+  'ثانوية الاقصى للبنات',
+  'ثانوية الاوائل الاهلية للبنين',
+  'ثانوية الاوائل الاهلية للبنات',
+  'ثانوية البتول للبنات',
+  'ثانوية السلام للبنين',
+  'ثانوية الشهد للبنات',
+  'ثانوية الشهيد باسم المختلطة',
+  'ثانوية الشهيد عبد الامير رسن حسن للبنات',
+  'ثانوية الشهيد قاسم طارش للبنين',
+  'ثانوية الشيخ الطوسي للبنين',
+  'ثانوية الشيماء للبنات',
+  'ثانوية الصفا للبنين',
+  'ثانوية العمارة الحديثة الاهلية للبنين',
+  'ثانوية العمارة الحديثة الاهلية للبنات',
+  'ثانوية الفراهيدي الاهلية للبنين',
+  'ثانوية بني هاشم للبنين',
+  'ثانوية بني هاشم للبنات',
+  'ثانوية ثغر العراق للبنات',
+  'ثانوية جابر بن حيان للبنين',
+  'ثانوية جعفر الطيار للبنين',
+  'ثانوية جنة الخلد للبنات',
+  'ثانوية دجلة للبنين',
+  'ثانوية رقية بنت الحسين ع للبنات',
+  'ثانوية علي الشرقي للبنين',
+  'ثانوية علي الغربي للبنات',
+  'ثانوية علي الغربي للبنين',
+  'ثانوية قلعة العلوم الاهلية للبنين',
+  'ثانوية قلعة العلوم الاهلية للبنات',
+  'ثانوية قلعة صالح للبنات',
+  'ثانوية قلعة صالح للبنين',
+  'ثانوية الميمونة للبنات',
+  'ثانوية مروج الذهب للبنات',
+  'متوسطة سما ميسان للبنات',
+  'متوسطة المجر الكبير للبنات',
+  'متوسطة ام البنين للبنات',
+  'متوسطة امنة بنت وهب للبنات',
+  'متوسطة حي المعلمين للبنات',
+  'متوسطة زينب الحوراء ع للبنات',
+  'متوسطة السيدة لبابة للبنات',
+  'متوسطة كنز المعرفة المختلطة',
+  'متوسطة التراث العربي المختلطة',
+  'متوسطة الكاظمية المختلطة',
+  'متوسطة التآخي المسائية للبنين'
+];
+
 interface Period {
   id: string;
   periodNumber: number;
@@ -116,7 +189,6 @@ export default function SmartSchoolTimetable() {
     return () => clearInterval(timer);
   }, []);
 
-  // 1. معالجة تسجيل الدخول للمدرسة
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -140,7 +212,6 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    // تسجيل الدخول بنجاح
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
@@ -163,7 +234,6 @@ export default function SmartSchoolTimetable() {
     setCurrentView('dashboard');
   };
 
-  // 2. معالجة إنشاء حساب مدرسة جديد
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -268,6 +338,13 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
       
+      {/* قائمة الاقتراحات المسبقة لمدارس ميسان */}
+      <datalist id="missan-schools-list">
+        {MISSAN_SCHOOLS.map((school, index) => (
+          <option key={index} value={school} />
+        ))}
+      </datalist>
+
       {/* 1. تسجيل الدخول / إنشاء حساب جديد للمدرسة */}
       {currentView === 'login' && (
         <div className="max-w-md mx-auto mt-8 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -275,11 +352,10 @@ export default function SmartSchoolTimetable() {
             <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
               🏫
             </div>
-            <h1 className="text-2xl font-bold text-white mb-1">منصة المدارس الذكية</h1>
+            <h1 className="text-2xl font-bold text-white mb-1">منصة المدارس الذكية - ميسان</h1>
             <p className="text-xs text-slate-400">بوابة إدارة وإدراج الجداول الدراسية المركزية</p>
           </div>
 
-          {/* تبويبات التنقل بين الدخول والتسجيل */}
           <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
             <button
               onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }}
@@ -299,17 +375,17 @@ export default function SmartSchoolTimetable() {
             </button>
           </div>
 
-          {/* نموذج تسجيل الدخول للمدارس المسجلة */}
           {authTab === 'login' && (
             <form onSubmit={handleSchoolLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-amber-400 mb-1">🏷️ اسم المدرسة المسجلة</label>
+                <label className="block text-xs font-medium text-amber-400 mb-1">🏷️ اسم المدرسة</label>
                 <input 
                   type="text" 
+                  list="missan-schools-list"
                   value={schoolName} 
                   onChange={(e) => setSchoolName(e.target.value)}
                   className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                  placeholder="أدخل اسم المدرسة بالضبط"
+                  placeholder="اختر أو اكتب اسم المدرسة"
                   required
                 />
               </div>
@@ -338,7 +414,6 @@ export default function SmartSchoolTimetable() {
             </form>
           )}
 
-          {/* نموذج إنشاء حساب مدرسة جديد لاول مرة */}
           {authTab === 'register' && (
             <form onSubmit={handleSchoolRegister} className="space-y-4">
               <div>
@@ -368,13 +443,14 @@ export default function SmartSchoolTimetable() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-rose-400 mb-1">🏷️ اسم المدرسة الجديد</label>
+                <label className="block text-xs font-medium text-rose-400 mb-1">🏷️ اختر أو اكتب اسم المدرسة (مدارس ميسان)</label>
                 <input 
                   type="text" 
+                  list="missan-schools-list"
                   value={schoolName} 
                   onChange={(e) => setSchoolName(e.target.value)}
                   className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                  placeholder="مثال: اعدادية اليمامة للبنين"
+                  placeholder="اختر من القائمة أو اكتب اسم المدرسة"
                   required
                 />
               </div>
@@ -786,7 +862,7 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 4. لوحة تحكم الأدمن العام المركزية */}
+      {/* 4. لوحة تحكم الأدمن العام */}
       {currentView === 'super-admin' && (
         <div className="max-w-2xl mx-auto space-y-6">
           {!isSuperAuthenticated ? (
