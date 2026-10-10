@@ -52,6 +52,7 @@ export default function SmartSchoolTimetable() {
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
   const [selectedDay, setSelectedDay] = useState('sunday');
+  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواذير المعتمدة خلال أسبوع الامتحانات.');
   
   const [schedule, setSchedule] = useState<Record<string, Period[]>>({
     sunday: createDefaultDayPeriods(),
@@ -291,9 +292,10 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
+      {/* 2. واجهة المدرسة الرئيسية (Dashboard) بتخطيط شبكي ثلاثي يملأ الشاشة بالكامل */}
       {currentView === 'dashboard' && (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* الشريط العلوي */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">لوحة تحكم المدرسة النشطة</span>
@@ -322,76 +324,144 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* استعراض الجدول المعتمد */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-white">📅 جدول الحصص الأسبوعي المعتمد</h2>
-                <p className="text-xs text-slate-400 mt-0.5">هذا الجدول ظاهر حالياً لطلبة المدرسة</p>
-              </div>
-              <button 
-                onClick={() => setCurrentView('editor')}
-                className="text-xs text-indigo-400 hover:underline bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl"
-              >
-                تعديل الجدول ⚙️
-              </button>
-            </div>
+          {/* الشبكة الثلاثية لإلغاء المساحات الفارغة الجانبية */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            {/* الشريط الجانبي الأيمن: حالة الحصة الآن وإحصائيات الدوام */}
+            <div className="lg:col-span-1 space-y-4">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                  <h3 className="text-sm font-bold text-white">حالة الدوام الحالية</h3>
+                </div>
 
-            {/* أيام الأسبوع */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {DAYS.map((day) => (
-                <button
-                  key={day.id}
-                  onClick={() => setSelectedDay(day.id)}
-                  className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
-                    selectedDay === day.id 
-                      ? 'bg-indigo-600 text-white shadow-md' 
-                      : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
-                  }`}
-                >
-                  {day.name}
-                </button>
-              ))}
-            </div>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-center space-y-2">
+                  <span className="text-xs text-slate-400">الدرس القائم الآن 🔔</span>
+                  <h4 className="text-base font-black text-amber-400">
+                    {schedule[selectedDay]?.[0]?.subject || 'الدرس الأول'}
+                  </h4>
+                  <span className="text-[11px] bg-indigo-500/10 text-indigo-400 px-2.5 py-1 rounded-lg inline-block">
+                    ⏰ {schedule[selectedDay]?.[0]?.time || '08:00 - 08:45'}
+                  </span>
+                </div>
 
-            {/* الحصص الـ 6 مع اسم المادة في منتصف السطر الخاص بالدرس تماماً */}
-            <div className="space-y-3.5 pt-2">
-              {schedule[selectedDay]?.map((period) => (
-                <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-4 space-y-3 shadow-md">
-                  {/* سطر موحد يوزع العناصر: يمين (الرقم والاسم)، وسط (اسم المادة)، يسار (فراغ للتوازن) */}
-                  <div className="grid grid-cols-3 items-center border-b border-slate-800/90 pb-2.5">
-                    <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold shadow-md">
-                        0{period.periodNumber}
-                      </span>
-                      <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
-                    </div>
-                    
-                    {/* اسم المادة في المنتصف تماماً وبشكل بارز */}
-                    <div className="text-center">
-                      <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide">
-                        {period.subject || 'حصة فراغ'}
-                      </span>
-                    </div>
-
-                    <div></div>
+                <div className="space-y-2 text-xs">
+                  <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                    <span className="text-slate-400">إجمالي حصص اليوم:</span>
+                    <span className="font-bold text-white">6 دروس</span>
                   </div>
-
-                  {/* تفاصيل الحصة (الوقت، المدرس، القاعة) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                    <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                      <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white">{period.time || '---'}</span>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                      <span>👨‍🏫</span> <span className="text-slate-400">المدرس:</span> <span className="font-bold text-white">{period.teacher || '---'}</span>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
-                      <span>🚪</span> <span className="text-slate-400">القاعة:</span> <span className="font-bold text-white">{period.room || '---'}</span>
-                    </div>
+                  <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                    <span className="text-slate-400">الحصص المملوءة:</span>
+                    <span className="font-bold text-emerald-400">
+                      {schedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} حصة
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
+
+            {/* العمود الأوسط: جدول الحصص المعتمد */}
+            <div className="lg:col-span-2 space-y-5">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">📅 جدول الحصص الأسبوعي</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">الجدول المعتمد المعروض للطلبة</p>
+                  </div>
+                  <button 
+                    onClick={() => setCurrentView('editor')}
+                    className="text-xs text-indigo-400 hover:underline bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl"
+                  >
+                    تعديل الجدول ⚙️
+                  </button>
+                </div>
+
+                {/* أيام الأسبوع */}
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {DAYS.map((day) => (
+                    <button
+                      key={day.id}
+                      onClick={() => setSelectedDay(day.id)}
+                      className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-xl text-xs font-semibold text-center transition ${
+                        selectedDay === day.id 
+                          ? 'bg-indigo-600 text-white shadow-md' 
+                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      {day.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* الحصص الـ 6 */}
+                <div className="space-y-3.5 pt-2">
+                  {schedule[selectedDay]?.map((period) => (
+                    <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
+                      <div className="grid grid-cols-3 items-center border-b border-slate-800/90 pb-2.5">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold shadow-md">
+                            0{period.periodNumber}
+                          </span>
+                          <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
+                        </div>
+                        
+                        <div className="text-center">
+                          <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white tracking-wide">
+                            {period.subject || 'حصة فراغ'}
+                          </span>
+                        </div>
+
+                        <div></div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                          <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white">{period.time || '---'}</span>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                          <span>👨‍🏫</span> <span className="text-slate-400">المدرس:</span> <span className="font-bold text-white">{period.teacher || '---'}</span>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800/80 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                          <span>🚪</span> <span className="text-slate-400">القاعة:</span> <span className="font-bold text-white">{period.room || '---'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* الشريط الجانبي الأيسر: لوحة الإعلانات والأدوات السريعة */}
+            <div className="lg:col-span-1 space-y-4">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-3 flex items-center gap-2">
+                  <span>📢</span> لوحة الإعلانات المدرسية
+                </h3>
+
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 text-xs text-amber-200 space-y-2">
+                  <p className="leading-relaxed">{announcement}</p>
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <button 
+                    onClick={() => window.print()}
+                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                  >
+                    <span>🖨️</span> طباعة الجدول
+                  </button>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('تم نسخ رابط جدول المدرسة بنجاح!');
+                    }}
+                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                  >
+                    <span>🔗</span> مشاركة رابط الجدول
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
@@ -412,7 +482,6 @@ export default function SmartSchoolTimetable() {
             </button>
           </div>
 
-          {/* شريط الأيام */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="text-xs font-semibold text-slate-300">اختر اليوم لتعديل حصصه:</h2>
@@ -440,7 +509,6 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* حقول الحصص الـ 6 لليوم المختار */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
             <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
               <span>📝</span> تعبئة حصص يوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
@@ -505,7 +573,6 @@ export default function SmartSchoolTimetable() {
               ))}
             </div>
 
-            {/* زر حفظ الجدول بالكامل */}
             <div className="pt-4">
               <button 
                 onClick={handleSaveFullSchedule}
