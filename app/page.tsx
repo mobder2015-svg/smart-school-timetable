@@ -53,6 +53,9 @@ export default function SmartSchoolTimetable() {
 
   const [selectedDay, setSelectedDay] = useState('sunday');
   
+  // حالة الساعة الحية
+  const [currentTime, setCurrentTime] = useState<string>('');
+
   // حالة الإعلان والتعديل
   const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات الرسمية.');
   const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
@@ -67,6 +70,14 @@ export default function SmartSchoolTimetable() {
   });
 
   useEffect(() => {
+    // تفعيل الساعة الحية وتحديثها كل ثانية
+    const updateClock = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
     const savedSchoolName = localStorage.getItem('currentSchoolName');
     const schoolsList = localStorage.getItem('globalRegisteredSchools');
@@ -108,6 +119,8 @@ export default function SmartSchoolTimetable() {
       }
       setCurrentView('dashboard');
     }
+
+    return () => clearInterval(timer);
   }, []);
 
   const handleSchoolLogin = (e: React.FormEvent) => {
@@ -317,7 +330,7 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
+      {/* 2. واجهة المدرسة الرئيسية (Dashboard) مع الساعة الجدارية */}
       {currentView === 'dashboard' && (
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -326,6 +339,20 @@ export default function SmartSchoolTimetable() {
               <h1 className="text-2xl font-bold text-white mt-2">{schoolName}</h1>
               <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
             </div>
+
+            {/* الساعة الجدارية الرقمية الحية في الشريط العلوي */}
+            <div className="bg-slate-950/90 border border-indigo-500/30 px-5 py-2.5 rounded-2xl shadow-inner flex items-center gap-3">
+              <span className="text-xl">⏰</span>
+              <div className="text-left" dir="ltr">
+                <div className="text-base font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
+                  {currentTime || '00:00:00'}
+                </div>
+                <div className="text-[10px] text-slate-400 text-center uppercase tracking-widest">
+                  Live Clock
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
               <button 
                 onClick={() => setCurrentView('editor')}
@@ -452,7 +479,7 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* الشريط الجانبي الأيسر: الشاشة التلفزيونية المصححة التداخل */}
+            {/* الشريط الجانبي الأيسر: الشاشة التلفزيونية */}
             <div className="lg:col-span-1 space-y-4">
               
               <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl shadow-indigo-950/50 group">
@@ -461,7 +488,6 @@ export default function SmartSchoolTimetable() {
 
                 <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[300px]">
                   
-                  {/* شريط علوي مصحح التداخل تماماً */}
                   <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
@@ -483,7 +509,6 @@ export default function SmartSchoolTimetable() {
                     </div>
                   </div>
 
-                  {/* جسم الشاشة مع فراغ داخلي مريح */}
                   <div className="p-4 flex-1 flex flex-col justify-center relative">
                     
                     <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none"></div>
@@ -525,7 +550,6 @@ export default function SmartSchoolTimetable() {
                     )}
                   </div>
 
-                  {/* شريط الإعلان السفلي المتناسق بدون تداخل */}
                   <div className="bg-slate-900 border-t border-slate-800 px-3 py-2 text-[10px] text-slate-300 flex items-center gap-2">
                     <span className="bg-amber-500 text-slate-950 font-extrabold px-1.5 py-0.5 rounded text-[9px] shrink-0">تنبيه</span>
                     <p className="font-medium text-amber-200/90 truncate">
