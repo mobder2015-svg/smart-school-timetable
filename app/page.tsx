@@ -25,6 +25,7 @@ interface SchoolRecord {
   schoolName: string;
   governorate: string;
   directorate: string;
+  passwordHash: string;
   lastUpdated: string;
   periodsCount: number;
 }
@@ -40,23 +41,22 @@ const createDefaultDayPeriods = (): Period[] => [
 
 export default function SmartSchoolTimetable() {
   const [currentView, setCurrentView] = useState<'login' | 'editor' | 'dashboard' | 'student' | 'super-admin'>('login');
+  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   
   const [governorate, setGovernorate] = useState('ميسان');
   const [directorate, setDirectorate] = useState('مديرية تربية ميسان');
   const [schoolName, setSchoolName] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState('');
 
   const [superAdminPass, setSuperAdminPass] = useState('');
   const [isSuperAuthenticated, setIsSuperAuthenticated] = useState(false);
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
   const [selectedDay, setSelectedDay] = useState('sunday');
-  
-  // حالة الساعة الحية
   const [currentTime, setCurrentTime] = useState<string>('');
 
-  // حالة الإعلان والتعديل
   const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات الرسمية.');
   const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
   const [tempAnnouncement, setTempAnnouncement] = useState('');
@@ -70,7 +70,6 @@ export default function SmartSchoolTimetable() {
   });
 
   useEffect(() => {
-    // تفعيل الساعة الحية وتحديثها كل ثانية
     const updateClock = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -97,20 +96,14 @@ export default function SmartSchoolTimetable() {
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
       const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
 
-      if (savedAnnouncement) {
-        setAnnouncement(savedAnnouncement);
-      }
+      if (savedAnnouncement) setAnnouncement(savedAnnouncement);
 
       if (savedSchedule) {
         try {
           const parsed = JSON.parse(savedSchedule);
           const normalized: Record<string, Period[]> = {};
           DAYS.forEach(day => {
-            if (parsed[day.id] && Array.isArray(parsed[day.id])) {
-              normalized[day.id] = parsed[day.id];
-            } else {
-              normalized[day.id] = createDefaultDayPeriods();
-            }
+            normalized[day.id] = parsed[day.id] && Array.isArray(parsed[day.id]) ? parsed[day.id] : createDefaultDayPeriods();
           });
           setSchedule(normalized);
         } catch (e) {
@@ -123,64 +116,89 @@ export default function SmartSchoolTimetable() {
     return () => clearInterval(timer);
   }, []);
 
+  // 1. معالجة تسجيل الدخول للمدرسة
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError('');
+    setLoginSuccess('');
+
     if (!schoolName.trim() || !password.trim()) {
       setLoginError('يرجى إدخال اسم المدرسة وكلمة المرور');
       return;
     }
-    
-    localStorage.setItem('isAdminAuthenticated', 'true');
-    localStorage.setItem('currentSchoolName', schoolName);
 
-    const schoolScheduleKey = `schedule_${schoolName}`;
-    const savedSchedule = localStorage.getItem(schoolScheduleKey);
-    const savedAnnouncement = localStorage.getItem(`announcement_${schoolName}`);
+    const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
+    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase());
 
-    if (savedAnnouncement) {
-      setAnnouncement(savedAnnouncement);
+    if (!targetSchool) {
+      setLoginError('اسم المدرسة غير مسجل حالياً. يرجى إنشاء حساب جديد أولاً.');
+      return;
     }
 
-    let currentSchedule = schedule;
+    if (targetSchool.passwordHash !== password) {
+      setLoginError('كلمة المرور غير صحيحة! يرجى التأكد من الرمز السري.');
+      return;
+    }
+
+    // تسجيل الدخول بنجاح
+    localStorage.setItem('isAdminAuthenticated', 'true');
+    localStorage.setItem('currentSchoolName', targetSchool.schoolName);
+    setSchoolName(targetSchool.schoolName);
+    setGovernorate(targetSchool.governorate);
+    setDirectorate(targetSchool.directorate);
+
+    const schoolScheduleKey = `schedule_${targetSchool.schoolName}`;
+    const savedSchedule = localStorage.getItem(schoolScheduleKey);
+    const savedAnnouncement = localStorage.getItem(`announcement_${targetSchool.schoolName}`);
+
+    if (savedAnnouncement) setAnnouncement(savedAnnouncement);
     if (savedSchedule) {
       try {
-        const parsed = JSON.parse(savedSchedule);
-        const normalized: Record<string, Period[]> = {};
-        DAYS.forEach(day => {
-          if (parsed[day.id] && Array.isArray(parsed[day.id])) {
-            normalized[day.id] = parsed[day.id];
-          } else {
-            normalized[day.id] = createDefaultDayPeriods();
-          }
-        });
-        currentSchedule = normalized;
-        setSchedule(currentSchedule);
+        setSchedule(JSON.parse(savedSchedule));
       } catch (e) {
         console.error(e);
       }
     }
 
-    const totalPeriods = Object.values(currentSchedule).reduce(
-      (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
-    );
+    setCurrentView('dashboard');
+  };
+
+  // 2. معالجة إنشاء حساب مدرسة جديد
+  const handleSchoolRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginSuccess('');
+
+    if (!schoolName.trim() || !password.trim() || !governorate.trim() || !directorate.trim()) {
+      setLoginError('يرجى إكمال جميع حقول التسجيل');
+      return;
+    }
+
+    const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
+    const existing = schoolsList.find(s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase());
+
+    if (existing) {
+      setLoginError('اسم هذه المدرسة مسجل مسبقاً! انتقل لتبويب تسجيل الدخول.');
+      return;
+    }
 
     const newSchoolRecord: SchoolRecord = {
       id: schoolName.toLowerCase().replace(/\s+/g, '-'),
-      schoolName,
+      schoolName: schoolName.trim(),
       governorate,
       directorate,
+      passwordHash: password,
       lastUpdated: new Date().toLocaleDateString('ar-IQ'),
-      periodsCount: totalPeriods,
+      periodsCount: 0,
     };
 
-    const existingSchools: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const filtered = existingSchools.filter(s => s.schoolName !== schoolName);
-    const updatedSchoolsList = [newSchoolRecord, ...filtered];
-    
+    const updatedSchoolsList = [newSchoolRecord, ...schoolsList];
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
-    setLoginError('');
-    setCurrentView('dashboard');
+
+    setLoginSuccess('تم إنشاء حساب المدرسة بنجاح! يمكنك الآن تسجيل الدخول.');
+    setAuthTab('login');
+    setPassword('');
   };
 
   const handleSaveAnnouncement = () => {
@@ -192,9 +210,7 @@ export default function SmartSchoolTimetable() {
 
   const handlePeriodFieldChange = (dayId: string, periodId: string, field: keyof Period, value: string) => {
     const updatedDayPeriods = schedule[dayId].map(p => {
-      if (p.id === periodId) {
-        return { ...p, [field]: value };
-      }
+      if (p.id === periodId) return { ...p, [field]: value };
       return p;
     });
 
@@ -252,77 +268,141 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-slate-100 p-4 sm:p-6 font-sans" dir="rtl">
       
-      {/* 1. تسجيل دخول المدرسة */}
+      {/* 1. تسجيل الدخول / إنشاء حساب جديد للمدرسة */}
       {currentView === 'login' && (
-        <div className="max-w-md mx-auto mt-10 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+        <div className="max-w-md mx-auto mt-8 bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
               🏫
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">بوابة إدارة المدرسة الآمنة</h1>
-            <p className="text-sm text-slate-400">سجل دخولك لإنشاء وتعديل جدول الحصص الأسبوعي</p>
+            <h1 className="text-2xl font-bold text-white mb-1">منصة المدارس الذكية</h1>
+            <p className="text-xs text-slate-400">بوابة إدارة وإدراج الجداول الدراسية المركزية</p>
           </div>
 
-          <form onSubmit={handleSchoolLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-amber-400 mb-1">📍 المحافظة</label>
-              <select 
-                value={governorate} 
-                onChange={(e) => setGovernorate(e.target.value)}
-                className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-              >
-                <option value="ميسان">ميسان</option>
-                <option value="بغداد">بغداد</option>
-                <option value="البصرة">البصرة</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">🏫 مديرية التربية</label>
-              <input 
-                type="text" 
-                value={directorate} 
-                onChange={(e) => setDirectorate(e.target.value)}
-                className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                placeholder="مديرية تربية ميسان"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-rose-400 mb-1">🏷️ اسم المدرسة</label>
-              <input 
-                type="text" 
-                value={schoolName} 
-                onChange={(e) => setSchoolName(e.target.value)}
-                className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                placeholder="مثال: اعدادية اليمامة للبنين"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-amber-400 mb-1">🔑 كلمة المرور السرية</label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                placeholder="أدخل كلمة المرور"
-                required
-              />
-            </div>
-
-            {loginError && <p className="text-xs text-rose-500 text-center">{loginError}</p>}
-
-            <button 
-              type="submit"
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium py-3.5 rounded-xl shadow-lg transition"
+          {/* تبويبات التنقل بين الدخول والتسجيل */}
+          <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <button
+              onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                authTab === 'login' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
             >
-              تسجيل الدخول والبدء 🚀
+              🔑 تسجيل الدخول
             </button>
-          </form>
+            <button
+              onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                authTab === 'register' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ✨ إنشاء حساب جديد
+            </button>
+          </div>
 
-          <div className="mt-6 text-center pt-4 border-t border-slate-800">
+          {/* نموذج تسجيل الدخول للمدارس المسجلة */}
+          {authTab === 'login' && (
+            <form onSubmit={handleSchoolLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-amber-400 mb-1">🏷️ اسم المدرسة المسجلة</label>
+                <input 
+                  type="text" 
+                  value={schoolName} 
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="أدخل اسم المدرسة بالضبط"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-amber-400 mb-1">🔑 كلمة المرور</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="أدخل كلمة المرور الخاصة بمدرستك"
+                  required
+                />
+              </div>
+
+              {loginError && <p className="text-xs text-rose-500 text-center font-medium bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">{loginError}</p>}
+              {loginSuccess && <p className="text-xs text-emerald-400 text-center font-medium bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
+
+              <button 
+                type="submit"
+                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+              >
+                تسجيل الدخول والفتح 🚀
+              </button>
+            </form>
+          )}
+
+          {/* نموذج إنشاء حساب مدرسة جديد لاول مرة */}
+          {authTab === 'register' && (
+            <form onSubmit={handleSchoolRegister} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-amber-400 mb-1">📍 المحافظة</label>
+                <select 
+                  value={governorate} 
+                  onChange={(e) => setGovernorate(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="ميسان">ميسان</option>
+                  <option value="بغداد">بغداد</option>
+                  <option value="البصرة">البصرة</option>
+                  <option value="ذي قار">ذي قار</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">🏫 مديرية التربية</label>
+                <input 
+                  type="text" 
+                  value={directorate} 
+                  onChange={(e) => setDirectorate(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="مثال: مديرية تربية ميسان"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-rose-400 mb-1">🏷️ اسم المدرسة الجديد</label>
+                <input 
+                  type="text" 
+                  value={schoolName} 
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="مثال: اعدادية اليمامة للبنين"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-amber-400 mb-1">🔑 تعيين كلمة مرور جديدة</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="تعيين كلمة مرور خاصة بالمدرسة"
+                  required
+                />
+              </div>
+
+              {loginError && <p className="text-xs text-rose-500 text-center font-medium bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">{loginError}</p>}
+
+              <button 
+                type="submit"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+              >
+                تأكيد وتسجيل المدرسة رسمياً 📝
+              </button>
+            </form>
+          )}
+
+          <div className="pt-4 border-t border-slate-800 text-center">
             <button onClick={() => setCurrentView('super-admin')} className="text-xs text-amber-400 hover:underline font-semibold">
               ⭐ دخول لوحة تحكم الأدمن العام
             </button>
@@ -330,7 +410,7 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 2. واجهة المدرسة الرئيسية (Dashboard) مع الساعة الجدارية */}
+      {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
       {currentView === 'dashboard' && (
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -340,7 +420,6 @@ export default function SmartSchoolTimetable() {
               <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
             </div>
 
-            {/* الساعة الجدارية الرقمية الحية في الشريط العلوي */}
             <div className="bg-slate-950/90 border border-indigo-500/30 px-5 py-2.5 rounded-2xl shadow-inner flex items-center gap-3">
               <span className="text-xl">⏰</span>
               <div className="text-left" dir="ltr">
@@ -707,7 +786,7 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 4. لوحة تحكم الأدمن العام */}
+      {/* 4. لوحة تحكم الأدمن العام المركزية */}
       {currentView === 'super-admin' && (
         <div className="max-w-2xl mx-auto space-y-6">
           {!isSuperAuthenticated ? (
