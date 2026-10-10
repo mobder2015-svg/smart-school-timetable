@@ -52,8 +52,12 @@ export default function SmartSchoolTimetable() {
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
   const [selectedDay, setSelectedDay] = useState('sunday');
-  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواذير المعتمدة خلال أسبوع الامتحانات.');
   
+  // حالة الإعلان والتعديل عليه
+  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات.');
+  const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
+  const [tempAnnouncement, setTempAnnouncement] = useState('');
+
   const [schedule, setSchedule] = useState<Record<string, Period[]>>({
     sunday: createDefaultDayPeriods(),
     monday: createDefaultDayPeriods(),
@@ -76,6 +80,11 @@ export default function SmartSchoolTimetable() {
       
       const schoolScheduleKey = `schedule_${savedSchoolName}`;
       const savedSchedule = localStorage.getItem(schoolScheduleKey);
+      const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
+
+      if (savedAnnouncement) {
+        setAnnouncement(savedAnnouncement);
+      }
 
       if (savedSchedule) {
         try {
@@ -109,6 +118,11 @@ export default function SmartSchoolTimetable() {
 
     const schoolScheduleKey = `schedule_${schoolName}`;
     const savedSchedule = localStorage.getItem(schoolScheduleKey);
+    const savedAnnouncement = localStorage.getItem(`announcement_${schoolName}`);
+
+    if (savedAnnouncement) {
+      setAnnouncement(savedAnnouncement);
+    }
 
     let currentSchedule = schedule;
     if (savedSchedule) {
@@ -150,6 +164,13 @@ export default function SmartSchoolTimetable() {
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
     setLoginError('');
     setCurrentView('dashboard');
+  };
+
+  const handleSaveAnnouncement = () => {
+    if (!tempAnnouncement.trim()) return;
+    setAnnouncement(tempAnnouncement);
+    localStorage.setItem(`announcement_${schoolName}`, tempAnnouncement);
+    setIsEditingAnnouncement(false);
   };
 
   const handlePeriodFieldChange = (dayId: string, periodId: string, field: keyof Period, value: string) => {
@@ -292,10 +313,9 @@ export default function SmartSchoolTimetable() {
         </div>
       )}
 
-      {/* 2. واجهة المدرسة الرئيسية (Dashboard) بتخطيط شبكي ثلاثي يملأ الشاشة بالكامل */}
+      {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
       {currentView === 'dashboard' && (
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* الشريط العلوي */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">لوحة تحكم المدرسة النشطة</span>
@@ -324,10 +344,9 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
 
-          {/* الشبكة الثلاثية لإلغاء المساحات الفارغة الجانبية */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
-            {/* الشريط الجانبي الأيمن: حالة الحصة الآن وإحصائيات الدوام */}
+            {/* الشريط الجانبي الأيمن: حالة الدوام */}
             <div className="lg:col-span-1 space-y-4">
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
@@ -360,7 +379,7 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* العمود الأوسط: جدول الحصص المعتمد */}
+            {/* العمود الأوسط: جدول الحصص */}
             <div className="lg:col-span-2 space-y-5">
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -376,7 +395,6 @@ export default function SmartSchoolTimetable() {
                   </button>
                 </div>
 
-                {/* أيام الأسبوع */}
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {DAYS.map((day) => (
                     <button
@@ -393,7 +411,6 @@ export default function SmartSchoolTimetable() {
                   ))}
                 </div>
 
-                {/* الحصص الـ 6 */}
                 <div className="space-y-3.5 pt-2">
                   {schedule[selectedDay]?.map((period) => (
                     <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
@@ -431,16 +448,55 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* الشريط الجانبي الأيسر: لوحة الإعلانات والأدوات السريعة */}
+            {/* الشريط الجانبي الأيسر: لوحة الإعلانات المدرسية مع زر التعديل */}
             <div className="lg:col-span-1 space-y-4">
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-                <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-3 flex items-center gap-2">
-                  <span>📢</span> لوحة الإعلانات المدرسية
-                </h3>
-
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 text-xs text-amber-200 space-y-2">
-                  <p className="leading-relaxed">{announcement}</p>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>📢</span> لوحة الإعلانات
+                  </h3>
+                  {!isEditingAnnouncement && (
+                    <button 
+                      onClick={() => {
+                        setTempAnnouncement(announcement);
+                        setIsEditingAnnouncement(true);
+                      }}
+                      className="text-xs text-amber-400 hover:underline bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg"
+                    >
+                      تعديل ✏️
+                    </button>
+                  )}
                 </div>
+
+                {isEditingAnnouncement ? (
+                  <div className="space-y-3">
+                    <textarea 
+                      value={tempAnnouncement} 
+                      onChange={(e) => setTempAnnouncement(e.target.value)}
+                      rows={4}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
+                      placeholder="اكتب التنبيه أو الإعلان المدرسي هنا..."
+                    />
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleSaveAnnouncement}
+                        className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition"
+                      >
+                        حفظ الإعلان 💾
+                      </button>
+                      <button 
+                        onClick={() => setIsEditingAnnouncement(false)}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs transition"
+                      >
+                        إلغاء ✕
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 text-xs text-amber-200 space-y-2">
+                    <p className="leading-relaxed">{announcement}</p>
+                  </div>
+                )}
 
                 <div className="pt-2 space-y-2">
                   <button 
