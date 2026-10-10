@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Printer, Share2, Upload, Sparkles, Building2 } from 'lucide-react';
 
 const DAYS = [
   { id: 'sunday', name: 'الأحد' },
@@ -164,6 +165,9 @@ export default function SmartSchoolTimetable() {
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState('');
 
+  // 🖼️ إضافة حالة شعار المدرسة المخصص
+  const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
+
   const [superAdminPass, setSuperAdminPass] = useState('');
   const [isSuperAuthenticated, setIsSuperAuthenticated] = useState(false);
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
@@ -230,8 +234,10 @@ export default function SmartSchoolTimetable() {
       const savedMorning = localStorage.getItem(`schedule_morning_${savedSchoolName}`);
       const savedAfternoon = localStorage.getItem(`schedule_afternoon_${savedSchoolName}`);
       const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
+      const savedLogo = localStorage.getItem(`logo_${savedSchoolName}`);
 
       if (savedAnnouncement) setAnnouncement(savedAnnouncement);
+      if (savedLogo) setSchoolLogo(savedLogo);
       if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
       if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
 
@@ -241,7 +247,31 @@ export default function SmartSchoolTimetable() {
     return () => clearInterval(timer);
   }, []);
 
-  // 🔑 دالة تسجيل الدخول المحسنة لمنع الأخطاء
+  // 🖼️ دالة رفع شعار المدرسة وحفظه محلياً
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setSchoolLogo(base64String);
+        if (schoolName) {
+          localStorage.setItem(`logo_${schoolName}`, base64String);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 🔗 دالة مشاركة الجدول عبر الواتساب
+  const handleWhatsAppShare = () => {
+    const message = encodeURIComponent(
+      `جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}\nيمكنكم الاطلاع على جدول الحصص والمواعيد الرقمي عبر الرابط المباشر:\nhttps://smart-school-timetable-rgr1ks39i-dizzni.vercel.app`
+    );
+    window.open(`https://wa.me/?text=${message}`, "_blank");
+  };
+
+  // 🔑 تسجيل الدخول المحسنة
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -255,7 +285,6 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    // جلب القائمة المباشرة من الذاكرة لتفادي عدم تزامن الـ State
     const currentSchoolsList = refreshSchoolsFromStorage();
 
     const targetSchool = currentSchoolsList.find(s => {
@@ -274,7 +303,6 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    // النجاح والتخزين
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
@@ -285,15 +313,17 @@ export default function SmartSchoolTimetable() {
     const savedMorning = localStorage.getItem(`schedule_morning_${targetSchool.schoolName}`);
     const savedAfternoon = localStorage.getItem(`schedule_afternoon_${targetSchool.schoolName}`);
     const savedAnnouncement = localStorage.getItem(`announcement_${targetSchool.schoolName}`);
+    const savedLogo = localStorage.getItem(`logo_${targetSchool.schoolName}`);
 
     if (savedAnnouncement) setAnnouncement(savedAnnouncement);
+    if (savedLogo) setSchoolLogo(savedLogo);
     if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
     if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
 
     setCurrentView('dashboard');
   };
 
-  // 📝 دالة إنشاء الحساب المحسنة
+  // 📝 دالة إنشاء الحساب
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -353,6 +383,7 @@ export default function SmartSchoolTimetable() {
       localStorage.removeItem(`schedule_morning_${name}`);
       localStorage.removeItem(`schedule_afternoon_${name}`);
       localStorage.removeItem(`announcement_${name}`);
+      localStorage.removeItem(`logo_${name}`);
 
       if (schoolName === name) handleLogout();
       alert(`تم حذف حساب مدرسة (${name}) بنجاح.`);
@@ -443,7 +474,6 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
-      {/* خلفية تفاعلية مشعة */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-[128px] pointer-events-none -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-[128px] pointer-events-none -z-10"></div>
 
@@ -609,14 +639,38 @@ export default function SmartSchoolTimetable() {
           <div className="max-w-7xl mx-auto space-y-6">
             
             <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">
-                    ● لوحة تحكم المدرسة النشطة
-                  </span>
+              <div className="flex items-center gap-4">
+                {/* 🖼️ شعار المدرسة المرفوع */}
+                <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer hover:border-indigo-500 transition shadow-inner">
+                  {schoolLogo ? (
+                    <img src={schoolLogo} alt="شعار المدرسة" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-1">
+                      <Upload className="w-5 h-5 text-indigo-400 mx-auto mb-0.5 group-hover:scale-110 transition" />
+                      <span className="text-[9px] text-indigo-300 font-bold block">الشعار</span>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleLogoUpload} 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    title="رفع شعار المدرسة"
+                  />
                 </div>
-                <h1 className="text-2xl font-black text-white mt-2">{schoolName}</h1>
-                <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">
+                      ● لوحة تحكم المدرسة النشطة
+                    </span>
+                  </div>
+                  <h1 className="text-2xl font-black text-white mt-2 flex items-center gap-2">
+                    <Building2 className="w-6 h-6 text-indigo-400" />
+                    {schoolName}
+                  </h1>
+                  <p className="text-xs text-slate-400">{governorate} - {directorate}</p>
+                </div>
               </div>
 
               {/* أزرار اختيار الدوام الصباحي أو الظهري */}
@@ -643,16 +697,26 @@ export default function SmartSchoolTimetable() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2.5 flex-wrap w-full md:w-auto">
+              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
+                {/* 🔗 زر مشاركة الواتساب السريع */}
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5"
+                  title="مشاركة عبر الواتساب"
+                >
+                  <Share2 className="w-4 h-4" />
+                  واتساب
+                </button>
+
                 <button 
                   onClick={() => setCurrentView('editor')}
-                  className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg transition flex items-center justify-center gap-1.5"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1.5"
                 >
                   <span>✏️</span> تعديل الجدول
                 </button>
                 <button 
                   onClick={() => setCurrentView('student')}
-                  className="flex-1 md:flex-none bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-500/20 transition"
+                  className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-500/20 transition"
                 >
                   🎓 معاينة الطالب
                 </button>
@@ -805,7 +869,6 @@ export default function SmartSchoolTimetable() {
               {/* الشريط الجانبي الأيسر */}
               <div className="lg:col-span-1 space-y-4">
                 
-                {/* 🤖 كارت الطالب AI */}
                 <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
                   <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -829,7 +892,6 @@ export default function SmartSchoolTimetable() {
                   </div>
                 </div>
 
-                {/* شاشة التنبيه والإعلان */}
                 <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl">
                   <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[220px]">
                     <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2 flex items-center justify-between">
@@ -893,7 +955,7 @@ export default function SmartSchoolTimetable() {
                     onClick={() => window.print()}
                     className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                   >
-                    <span>🖨️</span> طباعة الجدول
+                    <span>🖨️</span> طباعة الجدول / PDF
                   </button>
                 </div>
 
@@ -1159,7 +1221,7 @@ export default function SmartSchoolTimetable() {
                 </button>
               </div>
 
-              <button onClick={() => window.print()} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-2.5 rounded-xl border border-slate-700 transition">🖨️ طباعة الجدول</button>
+              <button onClick={() => window.print()} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-2.5 rounded-xl border border-slate-700 transition">🖨️ طباعة الجدول / PDF</button>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-2">
@@ -1216,7 +1278,6 @@ export default function SmartSchoolTimetable() {
         )}
       </div>
 
-      {/* لوحة اعداد وتصميم المهندس المبرمج مبدر الياسري */}
       <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4">
         <div>
           <span>إعداد وتصميم المهندس المبرمج مبدر الياسري</span>
