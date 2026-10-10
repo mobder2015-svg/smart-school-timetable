@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Printer, Share2, Upload, Sparkles, Building2 } from 'lucide-react';
+import { Printer, Share2, Upload, Building2 } from 'lucide-react';
 
 const DAYS = [
   { id: 'sunday', name: 'الأحد' },
@@ -165,7 +165,6 @@ export default function SmartSchoolTimetable() {
   const [loginError, setLoginError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState('');
 
-  // 🖼️ إضافة حالة شعار المدرسة المخصص
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
 
   const [superAdminPass, setSuperAdminPass] = useState('');
@@ -247,7 +246,6 @@ export default function SmartSchoolTimetable() {
     return () => clearInterval(timer);
   }, []);
 
-  // 🖼️ دالة رفع شعار المدرسة وحفظه محلياً
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -263,7 +261,6 @@ export default function SmartSchoolTimetable() {
     }
   };
 
-  // 🔗 دالة مشاركة الجدول عبر الواتساب
   const handleWhatsAppShare = () => {
     const message = encodeURIComponent(
       `جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}\nيمكنكم الاطلاع على جدول الحصص والمواعيد الرقمي عبر الرابط المباشر:\nhttps://smart-school-timetable-rgr1ks39i-dizzni.vercel.app`
@@ -271,7 +268,6 @@ export default function SmartSchoolTimetable() {
     window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
-  // 🔑 تسجيل الدخول المحسنة
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -323,7 +319,6 @@ export default function SmartSchoolTimetable() {
     setCurrentView('dashboard');
   };
 
-  // 📝 دالة إنشاء الحساب
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -474,6 +469,35 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
+      {/* 🖨️ تخصيص الطباعة لتبدو بشكل مرتب ومدموج في ورقة عرضية واحدة */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 5mm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          /* إخفاء العناصر غير المرغوب فيها عند الطباعة */
+          .no-print, header:not(.printable-header), .sidebar-panel, footer, button {
+            display: none !important;
+          }
+          /* إظهار منطقة الجدول بشكل مدموج وواضح للطباعة */
+          .printable-area {
+            display: block !important;
+            width: 100% !important;
+            background: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+      `}</style>
+
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-[128px] pointer-events-none -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-[128px] pointer-events-none -z-10"></div>
 
@@ -640,7 +664,6 @@ export default function SmartSchoolTimetable() {
             
             <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                {/* 🖼️ شعار المدرسة المرفوع */}
                 <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer hover:border-indigo-500 transition shadow-inner">
                   {schoolLogo ? (
                     <img src={schoolLogo} alt="شعار المدرسة" className="w-full h-full object-cover" />
@@ -674,7 +697,7 @@ export default function SmartSchoolTimetable() {
               </div>
 
               {/* أزرار اختيار الدوام الصباحي أو الظهري */}
-              <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex items-center gap-2 shadow-inner">
+              <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex items-center gap-2 shadow-inner no-print">
                 <button
                   onClick={() => setShiftType('morning')}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
@@ -697,8 +720,7 @@ export default function SmartSchoolTimetable() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
-                {/* 🔗 زر مشاركة الواتساب السريع */}
+              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end no-print">
                 <button 
                   onClick={handleWhatsAppShare}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5"
@@ -732,7 +754,7 @@ export default function SmartSchoolTimetable() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
               
               {/* العمود الجانبي الأيمن */}
-              <div className="lg:col-span-1 space-y-4">
+              <div className="lg:col-span-1 space-y-4 no-print sidebar-panel">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -776,8 +798,8 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* العمود الأوسط - جدول الحصص */}
-              <div className="lg:col-span-2 space-y-5">
+              {/* العمود الأوسط - جدول الحصص (مخصص للطباعة بـ printable-area) */}
+              <div className="lg:col-span-2 space-y-5 printable-area">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                     <div>
@@ -792,13 +814,13 @@ export default function SmartSchoolTimetable() {
                     </div>
                     <button 
                       onClick={() => setCurrentView('editor')}
-                      className="text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition"
+                      className="text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition no-print"
                     >
                       تعديل ⚙️
                     </button>
                   </div>
 
-                  <div className="flex gap-2 overflow-x-auto pb-2">
+                  <div className="flex gap-2 overflow-x-auto pb-2 no-print">
                     {DAYS.map((day) => (
                       <button
                         key={day.id}
@@ -867,7 +889,7 @@ export default function SmartSchoolTimetable() {
               </div>
 
               {/* الشريط الجانبي الأيسر */}
-              <div className="lg:col-span-1 space-y-4">
+              <div className="lg:col-span-1 space-y-4 no-print sidebar-panel">
                 
                 <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
                   <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
@@ -1278,7 +1300,7 @@ export default function SmartSchoolTimetable() {
         )}
       </div>
 
-      <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4">
+      <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4 no-print">
         <div>
           <span>إعداد وتصميم المهندس المبرمج مبدر الياسري</span>
         </div>
