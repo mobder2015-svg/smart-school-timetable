@@ -192,6 +192,21 @@ export default function SmartSchoolTimetable() {
   const activeSchedule = shiftType === 'morning' ? morningSchedule : afternoonSchedule;
   const setActiveSchedule = shiftType === 'morning' ? setMorningSchedule : setAfternoonSchedule;
 
+  const refreshSchoolsFromStorage = () => {
+    if (typeof window !== 'undefined') {
+      const schoolsList = localStorage.getItem('globalRegisteredSchools');
+      if (schoolsList) {
+        try {
+          setRegisteredSchools(JSON.parse(schoolsList));
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setRegisteredSchools([]);
+      }
+    }
+  };
+
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -200,18 +215,11 @@ export default function SmartSchoolTimetable() {
     updateClock();
     const timer = setInterval(updateClock, 1000);
 
+    refreshSchoolsFromStorage();
+
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
     const savedSchoolName = localStorage.getItem('currentSchoolName');
-    const schoolsList = localStorage.getItem('globalRegisteredSchools');
     
-    if (schoolsList) {
-      try {
-        setRegisteredSchools(JSON.parse(schoolsList));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
     if (savedAdmin === 'true' && savedSchoolName) {
       setSchoolName(savedSchoolName);
       
@@ -220,13 +228,9 @@ export default function SmartSchoolTimetable() {
       const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
 
       if (savedAnnouncement) setAnnouncement(savedAnnouncement);
+      if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
+      if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
 
-      if (savedMorning) {
-        try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) { console.error(e); }
-      }
-      if (savedAfternoon) {
-        try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) { console.error(e); }
-      }
       setCurrentView('dashboard');
     }
 
@@ -238,20 +242,23 @@ export default function SmartSchoolTimetable() {
     setLoginError('');
     setLoginSuccess('');
 
-    if (!schoolName.trim() || !password.trim()) {
+    const trimmedName = schoolName.trim();
+    const trimmedPass = password.trim();
+
+    if (!trimmedName || !trimmedPass) {
       setLoginError('يرجى إدخال اسم المدرسة وكلمة المرور');
       return;
     }
 
     const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase());
+    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
 
     if (!targetSchool) {
       setLoginError('اسم المدرسة غير مسجل حالياً. يرجى إنشاء حساب جديد أولاً.');
       return;
     }
 
-    if (targetSchool.passwordHash !== password) {
+    if (targetSchool.passwordHash.trim() !== trimmedPass) {
       setLoginError('كلمة المرور غير صحيحة! يرجى التأكد من الرمز السري.');
       return;
     }
@@ -278,13 +285,16 @@ export default function SmartSchoolTimetable() {
     setLoginError('');
     setLoginSuccess('');
 
-    if (!schoolName.trim() || !password.trim() || !governorate.trim() || !directorate.trim()) {
+    const trimmedName = schoolName.trim();
+    const trimmedPass = password.trim();
+
+    if (!trimmedName || !trimmedPass || !governorate.trim() || !directorate.trim()) {
       setLoginError('يرجى إكمال جميع حقول التسجيل');
       return;
     }
 
     const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
-    const existing = schoolsList.find(s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase());
+    const existing = schoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
 
     if (existing) {
       setLoginError('اسم هذه المدرسة مسجل مسبقاً! انتقل لتبويب تسجيل الدخول.');
@@ -292,11 +302,11 @@ export default function SmartSchoolTimetable() {
     }
 
     const newSchoolRecord: SchoolRecord = {
-      id: schoolName.toLowerCase().replace(/\s+/g, '-'),
-      schoolName: schoolName.trim(),
+      id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
+      schoolName: trimmedName,
       governorate,
       directorate,
-      passwordHash: password,
+      passwordHash: trimmedPass,
       lastUpdated: new Date().toLocaleDateString('ar-IQ'),
       periodsCount: 0,
     };
@@ -305,9 +315,29 @@ export default function SmartSchoolTimetable() {
     setRegisteredSchools(updatedSchoolsList);
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
 
-    setLoginSuccess('تم إنشاء حساب المدرسة بنجاح! يمكنك الآن تسجيل الدخول.');
+    setLoginSuccess('تم إنشاء حساب المدرسة بنجاح! يمكنك الآن تسجيل الدخول مباشرة.');
     setAuthTab('login');
     setPassword('');
+  };
+
+  const handleDeleteSchool = (schoolId: string, name: string) => {
+    if (confirm(`هل أنت متأكد من رغبتك في حذف تسجيل مدرسة (${name}) نهائياً من المنصة؟`)) {
+      const schoolsList: SchoolRecord[] = JSON.parse(localStorage.getItem('globalRegisteredSchools') || '[]');
+      const updatedList = schoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
+      
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
+      setRegisteredSchools(updatedList);
+
+      localStorage.removeItem(`schedule_morning_${name}`);
+      localStorage.removeItem(`schedule_afternoon_${name}`);
+      localStorage.removeItem(`announcement_${name}`);
+
+      if (schoolName === name) {
+        handleLogout();
+      }
+
+      alert(`تم حذف حساب مدرسة (${name}) بنجاح.`);
+    }
   };
 
   const handleSaveAnnouncement = () => {
@@ -367,8 +397,9 @@ export default function SmartSchoolTimetable() {
 
   const handleSuperAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (superAdminPass === 'admin123') {
+    if (superAdminPass.trim() === 'admin123') {
       setIsSuperAuthenticated(true);
+      refreshSchoolsFromStorage();
     } else {
       alert('كلمة مرور الأدمن العام غير صحيحة!');
     }
@@ -524,7 +555,7 @@ export default function SmartSchoolTimetable() {
             )}
 
             <div className="pt-4 border-t border-slate-800 text-center">
-              <button onClick={() => setCurrentView('super-admin')} className="text-xs text-amber-400/80 hover:underline font-semibold">
+              <button onClick={() => { refreshSchoolsFromStorage(); setCurrentView('super-admin'); }} className="text-xs text-amber-400/80 hover:underline font-semibold">
                 ⭐ دخول لوحة تحكم الأدمن العام
               </button>
             </div>
@@ -535,7 +566,6 @@ export default function SmartSchoolTimetable() {
         {currentView === 'dashboard' && (
           <div className="max-w-7xl mx-auto space-y-6">
             
-            {/* الهيدر التجريبي المطور مع أزرار التبديل للدوام */}
             <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -957,7 +987,7 @@ export default function SmartSchoolTimetable() {
 
         {/* 4. لوحة تحكم الأدمن العام */}
         {currentView === 'super-admin' && (
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             {!isSuperAuthenticated ? (
               <div className="bg-slate-900/80 backdrop-blur-xl border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
                 <div className="text-center mb-6">
@@ -965,7 +995,7 @@ export default function SmartSchoolTimetable() {
                     👑
                   </div>
                   <h1 className="text-2xl font-bold text-white mb-1">لوحة تحكم الأدمن العام</h1>
-                  <p className="text-xs text-slate-400">كلمة المرور الافتراضية: admin123</p>
+                  <p className="text-xs text-slate-400">بوابة الإدارة والأمان لمدارس ميسان</p>
                 </div>
 
                 <form onSubmit={handleSuperAdminLogin} className="space-y-4">
@@ -1011,10 +1041,15 @@ export default function SmartSchoolTimetable() {
                   </div>
                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl">
-                  <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                    <span>📋</span> قائمة المدارس المنضمة للمنصة:
-                  </h2>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>📋</span> قائمة المدارس المنضمة للمنصة ({registeredSchools.length}):
+                    </h2>
+                    <button onClick={refreshSchoolsFromStorage} className="text-xs text-indigo-400 hover:underline">
+                      تحديث القائمة 🔄
+                    </button>
+                  </div>
 
                   {registeredSchools.length === 0 ? (
                     <p className="text-xs text-slate-500 text-center py-8">لم تقم أي مدرسة بتسجيل الدخول وإنشاء جدولها حتى الآن.</p>
@@ -1025,14 +1060,19 @@ export default function SmartSchoolTimetable() {
                           <div>
                             <h3 className="text-sm font-bold text-white">{school.schoolName}</h3>
                             <p className="text-xs text-slate-400 mt-0.5">📍 {school.governorate} - {school.directorate}</p>
+                            <p className="text-[11px] text-amber-400/80 mt-1">🔑 الرمز: <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{school.passwordHash}</span></p>
                           </div>
+                          
                           <div className="flex items-center gap-2 text-xs">
                             <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-xl font-mono">
-                              {school.periodsCount} حصة مسجلة
+                              {school.periodsCount} حصة
                             </span>
-                            <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl">
-                              {school.lastUpdated}
-                            </span>
+                            <button 
+                              onClick={() => handleDeleteSchool(school.id, school.schoolName)}
+                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 px-3 py-1.5 rounded-xl transition text-xs font-semibold"
+                            >
+                              🗑️ حذف الحساب
+                            </button>
                           </div>
                         </div>
                       ))}
