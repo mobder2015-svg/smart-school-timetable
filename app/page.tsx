@@ -72,7 +72,11 @@ export default function SmartSchoolTimetable() {
     const schoolsList = localStorage.getItem('globalRegisteredSchools');
     
     if (schoolsList) {
-      setRegisteredSchools(JSON.parse(schoolsList));
+      try {
+        setRegisteredSchools(JSON.parse(schoolsList));
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     if (savedAdmin === 'true' && savedSchoolName) {
@@ -448,19 +452,15 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* الشريط الجانبي الأيسر: لوحة الإعلانات المدرسية بتصميم شاشة تلفزيونية ذكية فاخرة */}
+            {/* الشريط الجانبي الأيسر: الشاشة التلفزيونية */}
             <div className="lg:col-span-1 space-y-4">
               
-              {/* إطار الشاشة التلفزيونية */}
               <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl shadow-indigo-950/50 group">
                 
-                {/* إضاءة تلفزيونية خلفية متوهجة */}
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-amber-500/20 rounded-3xl blur-md opacity-70 group-hover:opacity-100 transition duration-500"></div>
 
-                {/* شاشة العرض الذكية الداخلية */}
                 <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[260px]">
                   
-                  {/* الشريط العلوي للشاشة التلفزيونية (TV Header) */}
                   <div className="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2.5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
@@ -482,10 +482,8 @@ export default function SmartSchoolTimetable() {
                     </div>
                   </div>
 
-                  {/* جسم الشاشة الرئيسي عرض المحتوى */}
                   <div className="p-4 flex-1 flex flex-col justify-center relative">
                     
-                    {/* شفرة التظليل والإنارة التلفزيونية */}
                     <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none"></div>
 
                     {isEditingAnnouncement ? (
@@ -525,21 +523,19 @@ export default function SmartSchoolTimetable() {
                     )}
                   </div>
 
-                  {/* شريط الأخبار السفلي التلفزيوني (Ticker Bar) */}
+                  {/* شريط الإعلان السفلي الثابت والآمن لـ Deployment */}
                   <div className="bg-gradient-to-r from-indigo-900/90 via-slate-900 to-indigo-950 border-t border-slate-800 p-2 text-[10px] text-slate-300 flex items-center overflow-hidden">
                     <span className="bg-amber-500 text-slate-950 font-extrabold px-2 py-0.5 rounded mr-2 shrink-0">تنبيه</span>
-                    <marquee className="font-medium text-amber-200/90" scrollamount="4">
+                    <p className="font-medium text-amber-200/90 truncate">
                       {announcement}
-                    </marquee>
+                    </p>
                   </div>
 
                 </div>
 
-                {/* قاعدة الشاشة التلفزيونية الفاخرة (TV Stand) */}
                 <div className="w-20 h-1.5 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700 mx-auto rounded-b-md shadow-md mt-1"></div>
               </div>
 
-              {/* أزرار الخدمات السريعة */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
                 <button 
                   onClick={() => window.print()}
@@ -549,8 +545,10 @@ export default function SmartSchoolTimetable() {
                 </button>
                 <button 
                   onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    alert('تم نسخ رابط جدول المدرسة بنجاح!');
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('تم نسخ رابط جدول المدرسة بنجاح!');
+                    }
                   }}
                   className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
                 >
