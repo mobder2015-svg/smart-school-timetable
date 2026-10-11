@@ -276,7 +276,6 @@ export default function SmartSchoolTimetable() {
     window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
-  // 🔑 تسجيل الدخول المركزي المحدث والثابت
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -307,7 +306,6 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    // حفظ واعتماد الجلسة مركزياً
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
@@ -328,7 +326,6 @@ export default function SmartSchoolTimetable() {
     setCurrentView('dashboard');
   };
 
-  // 📝 تسجيل مدرسة جديدة مركزياً في النظام
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -344,14 +341,11 @@ export default function SmartSchoolTimetable() {
     }
 
     const currentSchoolsList = refreshSchoolsFromStorage();
-
-    // التحقق هل المدرسة مسجلة مسبقاً
     const existingIndex = currentSchoolsList.findIndex(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
 
     let updatedSchoolsList = [...currentSchoolsList];
 
     if (existingIndex >= 0) {
-      // تحديث بيانات المدرسة القائمة مركزياً (كلمة المرور والهاتف)
       updatedSchoolsList[existingIndex] = {
         ...updatedSchoolsList[existingIndex],
         phone: trimmedPhone,
@@ -361,7 +355,6 @@ export default function SmartSchoolTimetable() {
         lastUpdated: new Date().toLocaleDateString('ar-IQ'),
       };
     } else {
-      // إضافة سجل جديد تماماً
       const newSchoolRecord: SchoolRecord = {
         id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
         schoolName: trimmedName,
@@ -532,6 +525,7 @@ export default function SmartSchoolTimetable() {
         ))}
       </datalist>
 
+      {/* 🖨️ للطباعة الشاملة */}
       <div className="hidden print-container">
         <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-2">
           <div className="flex items-center gap-3">
@@ -844,7 +838,7 @@ export default function SmartSchoolTimetable() {
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
                       <h3 className="text-xs font-bold text-white">
-                        {shiftType === 'morning' ? '☀️ الحصص الصباحية' : '🌙 الحصص الظهرية'}
+                        {shiftType === 'morning' ? '☀️ الحصص الصباحية' : '🌙 الحصص הظهرية'}
                       </h3>
                     </div>
                   </div>
@@ -882,6 +876,7 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
+              {/* العمود الأوسط - شاشة عرض جدول اليوم بالحاسوب والموبايل */}
               <div className="lg:col-span-2 space-y-5">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -921,6 +916,7 @@ export default function SmartSchoolTimetable() {
                     ))}
                   </div>
 
+                  {/* 🌟 تعديل التنسيق المرئي: إضافة اسم الصف في الوسط بشكل متوازن وواضح 🌟 */}
                   <div className="space-y-3.5 pt-2">
                     {activeSchedule[selectedDay]?.map((period) => {
                       const isFilled = period.subject.trim() !== '';
@@ -930,8 +926,9 @@ export default function SmartSchoolTimetable() {
                             ? 'bg-slate-950/80 border-slate-800 shadow-md' 
                             : 'bg-slate-950/30 border-slate-900 border-dashed text-slate-500'
                         }`}>
-                          <div className="grid grid-cols-3 items-center border-b border-slate-800 pb-2.5">
-                            <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
+                            {/* جهة اليمين: رقم واسم الدرس */}
+                            <div className="flex items-center gap-2.5 min-w-[120px]">
                               <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-md ${
                                 isFilled ? (shiftType === 'morning' ? 'bg-amber-500 text-slate-950' : 'bg-indigo-600 text-white') : 'bg-slate-800 text-slate-500'
                               }`}>
@@ -940,22 +937,23 @@ export default function SmartSchoolTimetable() {
                               <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
                             </div>
                             
-                            <div className="text-center">
-                              <span className={`text-base sm:text-lg font-black tracking-wide ${
+                            {/* الوسط: عرض اسم الصف بكل وضوح */}
+                            <div className="text-center flex-1 px-2">
+                              <span className="inline-block bg-slate-900 border border-slate-800 text-indigo-400 text-xs sm:text-sm font-bold px-3 py-1 rounded-xl shadow-inner">
+                                {period.className ? period.className : 'الصف غير محدد'}
+                              </span>
+                            </div>
+
+                            {/* جهة اليسار: اسم المادة أو حصة فراغ */}
+                            <div className="text-left min-w-[120px]">
+                              <span className={`text-sm sm:text-base font-black tracking-wide ${
                                 isFilled 
                                   ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white' 
                                   : 'text-slate-600 text-xs italic'
                               }`}>
                                 {period.subject || 'حصة فراغ'}
                               </span>
-                              {period.className && (
-                                <span className="block text-[11px] text-indigo-400 font-semibold mt-0.5">
-                                  الصف: {period.className}
-                                </span>
-                              )}
                             </div>
-
-                            <div></div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
@@ -1155,7 +1153,7 @@ export default function SmartSchoolTimetable() {
                           type="text" 
                           value={period.className || ''} 
                           onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)}
-                          placeholder="مثال: الأول متوسط" 
+                          placeholder="مثال: الخامس الابتدائي" 
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
                         />
                       </div>
@@ -1365,18 +1363,20 @@ export default function SmartSchoolTimetable() {
               <div className="space-y-3">
                 {activeSchedule[selectedDay]?.map((period) => (
                   <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-inner">
-                    <div className="grid grid-cols-3 items-center border-b border-slate-800 pb-2">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                       <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg w-fit">{period.periodName}</span>
-                      <div className="text-center">
+                      
+                      <span className="text-xs bg-slate-900 text-indigo-300 border border-slate-800 px-2.5 py-0.5 rounded-lg font-bold">
+                        {period.className ? period.className : 'الصف غير محدد'}
+                      </span>
+
+                      <div className="text-left">
                         <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
                           {period.subject || 'حصة فراغ'}
                         </span>
-                        {period.className && (
-                          <span className="block text-[10px] text-indigo-400 font-medium">الصف: {period.className}</span>
-                        )}
                       </div>
-                      <div></div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
                       <div className="bg-slate-900 p-2 rounded-xl font-mono">⏰ {period.time || '---'}</div>
                       <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || '---'}</div>
