@@ -167,12 +167,15 @@ export default function SmartSchoolTimetable() {
   const [loginSuccess, setLoginSuccess] = useState('');
 
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
+
   const [superAdminPass, setSuperAdminPass] = useState('');
   const [isSuperAuthenticated, setIsSuperAuthenticated] = useState(false);
   const [registeredSchools, setRegisteredSchools] = useState<SchoolRecord[]>([]);
 
   const [selectedDay, setSelectedDay] = useState('sunday');
-  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة.');
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  const [announcement, setAnnouncement] = useState('يرجى الالتزام بالزي المدرسي والمواعيد المعتمدة خلال أسبوع الامتحانات الرسمية.');
   const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
   const [tempAnnouncement, setTempAnnouncement] = useState('');
 
@@ -195,7 +198,7 @@ export default function SmartSchoolTimetable() {
   const activeSchedule = shiftType === 'morning' ? morningSchedule : afternoonSchedule;
   const setActiveSchedule = shiftType === 'morning' ? setMorningSchedule : setAfternoonSchedule;
 
-  const refreshSchools = (): SchoolRecord[] => {
+  const refreshSchoolsFromStorage = (): SchoolRecord[] => {
     if (typeof window !== 'undefined') {
       const raw = localStorage.getItem('globalRegisteredSchools');
       if (raw) {
@@ -213,31 +216,42 @@ export default function SmartSchoolTimetable() {
   };
 
   useEffect(() => {
-    const schools = refreshSchools();
+    const updateClock = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+
+    const schools = refreshSchoolsFromStorage();
+
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
     const savedSchoolName = localStorage.getItem('currentSchoolName');
     
     if (savedAdmin === 'true' && savedSchoolName) {
       setSchoolName(savedSchoolName);
-      const found = schools.find(s => s.schoolName === savedSchoolName);
-      if (found) {
-        setPhone(found.phone);
-        if (found.governorate) setGovernorate(found.governorate);
-        if (found.directorate) setDirectorate(found.directorate);
+      
+      const foundSchool = schools.find(s => s.schoolName === savedSchoolName);
+      if (foundSchool) {
+        setPhone(foundSchool.phone);
+        if (foundSchool.governorate) setGovernorate(foundSchool.governorate);
+        if (foundSchool.directorate) setDirectorate(foundSchool.directorate);
       }
 
       const savedMorning = localStorage.getItem(`schedule_morning_${savedSchoolName}`);
       const savedAfternoon = localStorage.getItem(`schedule_afternoon_${savedSchoolName}`);
-      const savedAnn = localStorage.getItem(`announcement_${savedSchoolName}`);
+      const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
       const savedLogo = localStorage.getItem(`logo_${savedSchoolName}`);
 
-      if (savedAnn) setAnnouncement(savedAnn);
+      if (savedAnnouncement) setAnnouncement(savedAnnouncement);
       if (savedLogo) setSchoolLogo(savedLogo);
       if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
       if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
 
       setCurrentView('dashboard');
     }
+
+    return () => clearInterval(timer);
   }, []);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,14 +261,18 @@ export default function SmartSchoolTimetable() {
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setSchoolLogo(base64String);
-        if (schoolName) localStorage.setItem(`logo_${schoolName}`, base64String);
+        if (schoolName) {
+          localStorage.setItem(`logo_${schoolName}`, base64String);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleWhatsAppShare = () => {
-    const message = encodeURIComponent(`جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}`);
+    const message = encodeURIComponent(
+      `جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}\nيمكنكم الاطلاع على جدول الحصص والمواعيد الرقمي عبر الرابط المباشر:\nhttps://smart-school-timetable-rgr1ks39i-dizzni.vercel.app`
+    );
     window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
@@ -271,11 +289,15 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    const schoolsList = refreshSchools();
-    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === inputName.toLowerCase());
+    const currentSchoolsList = refreshSchoolsFromStorage();
+
+    const targetSchool = currentSchoolsList.find(s => 
+      s.schoolName.trim().toLowerCase() === inputName.toLowerCase() ||
+      s.phone.trim().replace(/\s+/g, '') === inputName.replace(/\s+/g, '')
+    );
 
     if (!targetSchool) {
-      setLoginError('هذه المدرسة غير مسجلة! يرجى اختيار تسجيل مدرسة جديدة.');
+      setLoginError('هذه المدرسة غير مسجلة في النظام المركزي! يرجى اختيار إنشاء حساب جديد.');
       return;
     }
 
@@ -293,10 +315,10 @@ export default function SmartSchoolTimetable() {
 
     const savedMorning = localStorage.getItem(`schedule_morning_${targetSchool.schoolName}`);
     const savedAfternoon = localStorage.getItem(`schedule_afternoon_${targetSchool.schoolName}`);
-    const savedAnn = localStorage.getItem(`announcement_${targetSchool.schoolName}`);
+    const savedAnnouncement = localStorage.getItem(`announcement_${targetSchool.schoolName}`);
     const savedLogo = localStorage.getItem(`logo_${targetSchool.schoolName}`);
 
-    if (savedAnn) setAnnouncement(savedAnn);
+    if (savedAnnouncement) setAnnouncement(savedAnnouncement);
     if (savedLogo) setSchoolLogo(savedLogo);
     if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
     if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
@@ -314,18 +336,26 @@ export default function SmartSchoolTimetable() {
     const trimmedPass = password.trim();
 
     if (!trimmedName || !trimmedPhone || !trimmedPass) {
-      setLoginError('يرجى تعبئة كافة الحقول المطلوبة');
+      setLoginError('يرجى إدخال اسم المدرسة، رقم الهاتف، وكلمة المرور بدقة');
       return;
     }
 
-    const schoolsList = refreshSchools();
-    const existingIndex = schoolsList.findIndex(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+    const currentSchoolsList = refreshSchoolsFromStorage();
+    const existingIndex = currentSchoolsList.findIndex(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
 
-    let updatedList = [...schoolsList];
+    let updatedSchoolsList = [...currentSchoolsList];
+
     if (existingIndex >= 0) {
-      updatedList[existingIndex] = { ...updatedList[existingIndex], phone: trimmedPhone, passwordHash: trimmedPass };
+      updatedSchoolsList[existingIndex] = {
+        ...updatedSchoolsList[existingIndex],
+        phone: trimmedPhone,
+        passwordHash: trimmedPass,
+        governorate,
+        directorate,
+        lastUpdated: new Date().toLocaleDateString('ar-IQ'),
+      };
     } else {
-      updatedList.unshift({
+      const newSchoolRecord: SchoolRecord = {
         id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
         schoolName: trimmedName,
         phone: trimmedPhone,
@@ -334,35 +364,47 @@ export default function SmartSchoolTimetable() {
         passwordHash: trimmedPass,
         lastUpdated: new Date().toLocaleDateString('ar-IQ'),
         periodsCount: 0,
-      });
+      };
+      updatedSchoolsList = [newSchoolRecord, ...currentSchoolsList];
     }
 
-    localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
-    setRegisteredSchools(updatedList);
-    setLoginSuccess('✅ تم حفظ بيانات الحساب بنجاح! يمكنك تسجيل الدخول الآن.');
+    localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
+    setRegisteredSchools(updatedSchoolsList);
+
+    setLoginSuccess('✅ تم حفظ بيانات المدرسة بنجاح! يمكنك تسجيل الدخول الآن.');
     setAuthTab('login');
     setPassword('');
   };
 
   const handleDeleteSchool = (schoolId: string, name: string) => {
-    if (confirm(`هل أنت متأكد من حذف مدرسة (${name})؟`)) {
-      const schoolsList = refreshSchools();
-      const updated = schoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
-      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updated));
-      setRegisteredSchools(updated);
+    if (confirm(`هل أنت متأكد من رغبتك في حذف تسجيل مدرسة (${name}) نهائياً؟`)) {
+      const currentSchoolsList = refreshSchoolsFromStorage();
+      const updatedList = currentSchoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
+      
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
+      setRegisteredSchools(updatedList);
+
+      localStorage.removeItem(`schedule_morning_${name}`);
+      localStorage.removeItem(`schedule_afternoon_${name}`);
+      localStorage.removeItem(`announcement_${name}`);
+      localStorage.removeItem(`logo_${name}`);
+
       if (schoolName === name) handleLogout();
-      alert('تم الحذف بنجاح.');
+      alert(`تم حذف حساب مدرسة (${name}) بنجاح.`);
     }
   };
 
   const handleResetPassword = (name: string) => {
     const newPass = prompt(`أدخل كلمة المرور الجديدة لمدرسة (${name}):`);
     if (newPass && newPass.trim() !== '') {
-      const schoolsList = refreshSchools();
-      const updated = schoolsList.map(s => s.schoolName === name ? { ...s, passwordHash: newPass.trim() } : s);
-      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updated));
-      setRegisteredSchools(updated);
-      alert('تم تحديث الرمز بنجاح!');
+      const currentSchoolsList = refreshSchoolsFromStorage();
+      const updatedList = currentSchoolsList.map(s => {
+        if (s.schoolName === name) return { ...s, passwordHash: newPass.trim() };
+        return s;
+      });
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
+      setRegisteredSchools(updatedList);
+      alert('تم تحديث كلمة المرور بنجاح!');
     }
   };
 
@@ -374,18 +416,44 @@ export default function SmartSchoolTimetable() {
   };
 
   const handlePeriodFieldChange = (dayId: string, periodId: string, field: keyof Period, value: string) => {
-    const updated = activeSchedule[dayId].map(p => p.id === periodId ? { ...p, [field]: value } : p);
-    setActiveSchedule({ ...activeSchedule, [dayId]: updated });
+    const updatedDayPeriods = activeSchedule[dayId].map(p => {
+      if (p.id === periodId) return { ...p, [field]: value };
+      return p;
+    });
+
+    setActiveSchedule({
+      ...activeSchedule,
+      [dayId]: updatedDayPeriods,
+    });
   };
 
   const handleSaveFullSchedule = () => {
-    localStorage.setItem(`schedule_${shiftType}_${schoolName}`, JSON.stringify(activeSchedule));
+    const key = `schedule_${shiftType}_${schoolName}`;
+    localStorage.setItem(key, JSON.stringify(activeSchedule));
+
+    const totalPeriods = Object.values(activeSchedule).reduce(
+      (acc, dayPeriods) => acc + dayPeriods.filter(p => p.subject.trim() !== '').length, 0
+    );
+
+    const currentSchoolsList = refreshSchoolsFromStorage();
+    const updatedSchoolsList = currentSchoolsList.map(s => {
+      if (s.schoolName === schoolName) {
+        return { ...s, periodsCount: totalPeriods, lastUpdated: new Date().toLocaleDateString('ar-IQ') };
+      }
+      return s;
+    });
+    localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
+    setRegisteredSchools(updatedSchoolsList);
+
     setCurrentView('dashboard');
   };
 
   const handleClearDay = (dayId: string) => {
-    if (confirm('تفريغ جدول هذا اليوم؟')) {
-      setActiveSchedule({ ...activeSchedule, [dayId]: createDefaultDayPeriods(shiftType === 'afternoon') });
+    if (confirm(`هل أنت متأكد من رغبتك في تفريغ جدول يوم ${DAYS.find(d => d.id === dayId)?.name} للدوام ${shiftType === 'morning' ? 'الصباحي' : 'الظهري'}؟`)) {
+      setActiveSchedule({
+        ...activeSchedule,
+        [dayId]: createDefaultDayPeriods(shiftType === 'afternoon'),
+      });
     }
   };
 
@@ -399,9 +467,9 @@ export default function SmartSchoolTimetable() {
     e.preventDefault();
     if (superAdminPass.trim() === 'admin123') {
       setIsSuperAuthenticated(true);
-      refreshSchools();
+      refreshSchoolsFromStorage();
     } else {
-      alert('كلمة المرور غير صحيحة!');
+      alert('كلمة مرور الأدمن العام غير صحيحة!');
     }
   };
 
@@ -410,14 +478,54 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
-      {/* قائمة المدارس المساعدة داخل حقول الإدخال */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 6mm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+            font-size: 11px !important;
+          }
+          .screen-only, header, .sidebar-panel, footer, button, nav {
+            display: none !important;
+          }
+          .print-container {
+            display: block !important;
+            width: 100% !important;
+            color: black !important;
+          }
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 10px !important;
+          }
+          .print-table th, .print-table td {
+            border: 1.5px solid #000 !important;
+            padding: 6px 4px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+          }
+          .print-table th {
+            background-color: #f1f5f9 !important;
+            font-weight: bold !important;
+            color: black !important;
+          }
+        }
+      `}</style>
+
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-[128px] pointer-events-none -z-10 animate-pulse"></div>
+      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-[128px] pointer-events-none -z-10"></div>
+
       <datalist id="missan-schools-list">
         {MISSAN_SCHOOLS.map((school, index) => (
           <option key={index} value={school} />
         ))}
       </datalist>
 
-      {/* نموذج الطباعة */}
+      {/* 🖨️ نموذج الطباعة الشامل */}
       <div className="hidden print-container">
         <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-2">
           <div className="flex items-center gap-3">
@@ -428,64 +536,127 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
           <div className="text-left">
-            <h2 className="text-base font-bold">جدول الحصص الأسبوعي</h2>
-            <p className="text-xs font-semibold">الدوام: {shiftType === 'morning' ? 'الصباحي' : 'الظهري'}</p>
+            <h2 className="text-base font-bold">جدول الحصص الأسبوعي الشامل</h2>
+            <p className="text-xs font-semibold">
+              الدوام: {shiftType === 'morning' ? 'الصباحي ☀️' : 'الظهري (المسائي) 🌙'}
+            </p>
           </div>
         </div>
-        <table className="print-table w-full border-collapse border border-black">
+
+        <table className="print-table">
           <thead>
             <tr>
-              <th className="border border-black p-2">اليوم</th>
-              {[1, 2, 3, 4, 5, 6].map(n => <th key={n} className="border border-black p-2">الدرس {n}</th>)}
+              <th className="w-24">اليوم / الحصة</th>
+              <th>الدرس الأول</th>
+              <th>الدرس الثاني</th>
+              <th>الدرس الثالث</th>
+              <th>الدرس الرابع</th>
+              <th>الدرس الخامس</th>
+              <th>الدرس السادس</th>
             </tr>
           </thead>
           <tbody>
-            {DAYS.map(day => (
-              <tr key={day.id}>
-                <td className="border border-black p-2 font-bold">{day.name}</td>
-                {[1, 2, 3, 4, 5, 6].map(n => {
-                  const p = activeSchedule[day.id]?.find(x => x.periodNumber === n);
-                  return (
-                    <td key={n} className="border border-black p-2 text-center text-xs">
-                      {p?.subject || '-'}{p?.className ? ` (${p.className})` : ''}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {DAYS.map((day) => {
+              const dayPeriods = activeSchedule[day.id] || [];
+              return (
+                <tr key={day.id}>
+                  <td className="font-bold bg-slate-100">{day.name}</td>
+                  {[1, 2, 3, 4, 5, 6].map((num) => {
+                    const period = dayPeriods.find((p) => p.periodNumber === num);
+                    const subject = period?.subject?.trim();
+                    const className = period?.className?.trim();
+                    return (
+                      <td key={num}>
+                        {subject ? (
+                          <div>
+                            <div className="font-bold text-xs">{subject}</div>
+                            {className && <div className="text-[10px] text-slate-700">{className}</div>}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[10px]">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+
+        <div className="mt-4 flex justify-between text-[10px] font-bold border-t border-slate-300 pt-2">
+          <span>إدارة المدرسة: ________________</span>
+          <span>الختم الرسمي: ________________</span>
+          <span>إعداد المنظومة الذكية (مبدر الياسري)</span>
+        </div>
       </div>
 
       <div className="screen-only">
         {currentView === 'login' && (
           <div className="max-w-md mx-auto mt-8 bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
+              <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
                 🏫
               </div>
-              <h1 className="text-2xl font-black text-white mb-1">منصة المدارس الذكية</h1>
-              <p className="text-xs text-slate-400">اختر مدرستك من القائمة وسجل دخولك</p>
+              <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 mb-1">منصة المدارس الذكية - ميسان</h1>
+              <p className="text-xs text-slate-400">بوابة إدارة الجداول الدراسية المركزية</p>
             </div>
 
             <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
-              <button onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${authTab === 'login' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>🔑 تسجيل الدخول</button>
-              <button onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${authTab === 'register' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>✨ تسجيل مدرسة جديدة</button>
+              <button
+                onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition duration-300 ${
+                  authTab === 'login' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                🔑 تسجيل الدخول
+              </button>
+              <button
+                onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition duration-300 ${
+                  authTab === 'register' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ✨ إنشاء وحفظ الحساب
+              </button>
             </div>
 
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة (اكتب أو اختر من القائمة)</label>
-                  <input type="text" list="missan-schools-list" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="ابحث أو اختر اسم المدرسة..." required />
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة</label>
+                  <input 
+                    type="text" 
+                    list="missan-schools-list"
+                    value={schoolName} 
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                    placeholder="اختر أو اكتب اسم المدرسة"
+                    required
+                  />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="أدخل كلمة المرور" required />
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور المركزية</label>
+                  <input 
+                    type="password" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                    placeholder="أدخل الرمز السري الخاص بمدرستك"
+                    required
+                  />
                 </div>
-                {loginError && <p className="text-xs text-rose-400 text-center bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
-                {loginSuccess && <p className="text-xs text-emerald-400 text-center bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition text-sm">تسجيل الدخول 🚀</button>
+
+                {loginError && <p className="text-xs text-rose-400 text-center font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
+                {loginSuccess && <p className="text-xs text-emerald-400 text-center font-medium bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
+
+                <button 
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+                >
+                  تسجيل الدخول والفتح 🚀
+                </button>
               </form>
             )}
 
@@ -493,45 +664,112 @@ export default function SmartSchoolTimetable() {
               <form onSubmit={handleSchoolRegister} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-amber-400 mb-1.5">📍 المحافظة</label>
-                  <input type="text" value={governorate} disabled className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-400" />
+                  <select 
+                    value={governorate} 
+                    onChange={(e) => setGovernorate(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                  >
+                    <option value="ميسان">ميسان</option>
+                  </select>
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1.5">🏫 مديرية التربية</label>
-                  <input type="text" value={directorate} onChange={(e) => setDirectorate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" required />
+                  <input 
+                    type="text" 
+                    value={directorate} 
+                    onChange={(e) => setDirectorate(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                    placeholder="مثال: مديرية تربية ميسان"
+                    required
+                  />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اسم المدرسة (من القائمة أو اكتبه)</label>
-                  <input type="text" list="missan-schools-list" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="اختر أو اكتب اسم المدرسة" required />
+                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اسم المدرسة</label>
+                  <input 
+                    type="text" 
+                    list="missan-schools-list"
+                    value={schoolName} 
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                    placeholder="اختر من القائمة أو اكتب اسم المدرسة"
+                    required
+                  />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم الهاتف</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="07700000000" required />
+                  <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم هاتف المسؤول</label>
+                  <input 
+                    type="tel" 
+                    value={phone} 
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition font-mono"
+                    placeholder="مثال: 07700000000"
+                    required
+                  />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="رمز سري للحساب" required />
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 تعيين كلمة المرور المركزية</label>
+                  <input 
+                    type="password" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                    placeholder="رمز سري خاص بالمدرسة"
+                    required
+                  />
                 </div>
-                {loginError && <p className="text-xs text-rose-400 text-center bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
-                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition text-sm">حفظ وتسجيل الحساب 📝</button>
+
+                {loginError && <p className="text-xs text-rose-400 text-center font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
+
+                <button 
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
+                >
+                  حفظ وتثبيت الحساب مركزياً 📝
+                </button>
               </form>
             )}
 
             <div className="pt-4 border-t border-slate-800 text-center">
-              <button onClick={() => { refreshSchools(); setCurrentView('super-admin'); }} className="text-xs text-amber-400 hover:underline font-semibold">⭐ لوحة تحكم الأدمن العام</button>
+              <button onClick={() => { refreshSchoolsFromStorage(); setCurrentView('super-admin'); }} className="text-xs text-amber-400/80 hover:underline font-semibold">
+                ⭐ دخول لوحة تحكم الأدمن العام
+              </button>
             </div>
           </div>
         )}
 
         {currentView === 'dashboard' && (
           <div className="max-w-7xl mx-auto space-y-6">
-            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* الهيدر الرئيسي */}
+            <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer">
-                  {schoolLogo ? <img src={schoolLogo} alt="Logo" className="w-full h-full object-cover" /> : <Upload className="w-5 h-5 text-indigo-400" />}
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer hover:border-indigo-500 transition shadow-inner">
+                  {schoolLogo ? (
+                    <img src={schoolLogo} alt="شعار المدرسة" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-1">
+                      <Upload className="w-5 h-5 text-indigo-400 mx-auto mb-0.5 group-hover:scale-110 transition" />
+                      <span className="text-[9px] text-indigo-300 font-bold block">الشعار</span>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleLogoUpload} 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    title="رفع شعار المدرسة"
+                  />
                 </div>
+
                 <div>
-                  <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full font-semibold">● مسجل ومحفوظ</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">
+                      ● مسجل ومحفوظ
+                    </span>
+                  </div>
                   <h1 className="text-2xl font-black text-white mt-2 flex items-center gap-2">
                     <Building2 className="w-6 h-6 text-indigo-400" />
                     {schoolName}
@@ -540,101 +778,436 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-                <button onClick={() => setShiftType('morning')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${shiftType === 'morning' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>☀️ صباحي</button>
-                <button onClick={() => setShiftType('afternoon')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${shiftType === 'afternoon' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>🌙 ظهري</button>
+              <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex items-center gap-2 shadow-inner">
+                <button
+                  onClick={() => setShiftType('morning')}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                    shiftType === 'morning' 
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>☀️</span> الدوام الصباحي
+                </button>
+                <button
+                  onClick={() => setShiftType('afternoon')}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                    shiftType === 'afternoon' 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🌙</span> الدوام الظهري (المسائي)
+                </button>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={handleWhatsAppShare} className="bg-emerald-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1"><Share2 className="w-4 h-4" /> واتساب</button>
-                <button onClick={() => setCurrentView('editor')} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">تعديل الجدول ✏️</button>
-                <button onClick={handleLogout} className="bg-rose-500/10 text-rose-400 px-3 py-2.5 rounded-xl text-xs">خروج</button>
+              <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5"
+                  title="مشاركة عبر الواتساب"
+                >
+                  <Share2 className="w-4 h-4" />
+                  واتساب
+                </button>
+
+                <button 
+                  onClick={() => setCurrentView('editor')}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1.5"
+                >
+                  <span>✏️</span> تعديل الجدول
+                </button>
+                <button 
+                  onClick={() => setCurrentView('student')}
+                  className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-emerald-500/20 transition"
+                >
+                  🎓 معاينة الطالب
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="bg-rose-500/10 border border-rose-500/30 text-rose-400 px-3.5 py-2.5 rounded-xl text-xs font-medium hover:bg-rose-500/20 transition"
+                >
+                  خروج
+                </button>
               </div>
             </div>
 
-            <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 space-y-4">
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {DAYS.map((day) => (
-                  <button
-                    key={day.id}
-                    onClick={() => setSelectedDay(day.id)}
-                    className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-bold text-center transition ${
-                      selectedDay === day.id ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-950 text-slate-400 border border-slate-800'
-                    }`}
-                  >
-                    {day.name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                {activeSchedule[selectedDay]?.map((period) => {
-                  const isFilled = period.subject.trim() !== '';
-                  return (
-                    <div key={period.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-[120px]">
-                        <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xs">0{period.periodNumber}</span>
-                        <span className="text-xs text-slate-400 font-bold">{period.periodName}</span>
-                      </div>
-                      <div className="text-center flex-1">
-                        <span className="bg-slate-900 border border-slate-800 text-indigo-400 text-xs font-bold px-3 py-1 rounded-xl">
-                          {period.className || 'الصف غير محدد'}
-                        </span>
-                      </div>
-                      <div className="text-left min-w-[120px]">
-                        <span className="text-sm sm:text-base font-black text-amber-400">{period.subject || 'حصة فراغ'}</span>
-                      </div>
+            {/* التقسيم الموزون بالأعمدة 3 (اليمين - الوسط - اليسار) */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+              
+              {/* العمود الأيمن: إحصائيات الدوام */}
+              <div className="lg:col-span-1 space-y-4 sidebar-panel">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                      <h3 className="text-xs font-bold text-white">
+                        {shiftType === 'morning' ? '☀️ الحصص الصباحية' : '🌙 الحصص הظهرية'}
+                      </h3>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-center space-y-2">
+                    <span className="text-[11px] text-slate-400 font-medium">الدرس القائم الآن 🔔</span>
+                    <h4 className="text-base font-black text-amber-400">
+                      {activeSchedule[selectedDay]?.[0]?.subject || 'الدرس الأول'}
+                    </h4>
+                    <span className="text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-lg inline-block font-mono">
+                      ⏰ {activeSchedule[selectedDay]?.[0]?.time || (shiftType === 'morning' ? '08:00 - 08:45' : '01:00 - 01:45')}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                      <span className="text-slate-400">إجمالي الحصص:</span>
+                      <span className="font-bold text-white">6 دروس</span>
+                    </div>
+                    <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                      <span className="text-slate-400">الحصص المملوءة:</span>
+                      <span className="font-bold text-emerald-400">{filledCount} حصة</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-indigo-950/50 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-3xl p-5 shadow-xl text-center space-y-3">
+                  <div className="w-10 h-10 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 flex items-center justify-center mx-auto text-xl">
+                    💡
+                  </div>
+                  <h4 className="text-xs font-bold text-indigo-300">المنظومة الرقمية المدرسية</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    إدارة شاملة ومحدثة لجميع جداول ومواعيد الدوام الصباحي والظهري بدقة عالية.
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-4 text-center">
-                <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl text-xs font-bold border border-slate-700">🖨️ طباعة الجدول بالكامل (A4)</button>
+              {/* العمود الأوسط: عرض جدول اليوم (مع الصف في المنتصف) */}
+              <div className="lg:col-span-2 space-y-5">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <span>📅</span> 
+                        جدول الحصص - 
+                        <span className={shiftType === 'morning' ? 'text-amber-400' : 'text-indigo-400'}>
+                          {shiftType === 'morning' ? 'الدوام الصباحي' : 'الدوام الظهري'}
+                        </span>
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">تصفح وتعديل حصص اليوم المختارة</p>
+                    </div>
+                    <button 
+                      onClick={() => setCurrentView('editor')}
+                      className="text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-2 rounded-xl transition"
+                    >
+                      تعديل ⚙️
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {DAYS.map((day) => (
+                      <button
+                        key={day.id}
+                        onClick={() => setSelectedDay(day.id)}
+                        className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-bold text-center transition ${
+                          selectedDay === day.id 
+                            ? shiftType === 'morning' 
+                              ? 'bg-amber-500 text-slate-950 shadow-md' 
+                              : 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-slate-950/80 text-slate-400 border border-slate-800 hover:bg-slate-800'
+                        }`}
+                      >
+                        {day.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* الحصص مع التوزيع المتوازن (الصف في المنتصف) */}
+                  <div className="space-y-3.5 pt-2">
+                    {activeSchedule[selectedDay]?.map((period) => {
+                      const isFilled = period.subject.trim() !== '';
+                      return (
+                        <div key={period.id} className={`border rounded-2xl p-4 space-y-3 transition ${
+                          isFilled 
+                            ? 'bg-slate-950/80 border-slate-800 shadow-md' 
+                            : 'bg-slate-950/30 border-slate-900 border-dashed text-slate-500'
+                        }`}>
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
+                            {/* جهة اليمين: رقم واسم الدرس */}
+                            <div className="flex items-center gap-2.5 min-w-[120px]">
+                              <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-md ${
+                                isFilled ? (shiftType === 'morning' ? 'bg-amber-500 text-slate-950' : 'bg-indigo-600 text-white') : 'bg-slate-800 text-slate-500'
+                              }`}>
+                                0{period.periodNumber}
+                              </span>
+                              <h3 className="text-xs font-bold text-slate-400">{period.periodName}</h3>
+                            </div>
+                            
+                            {/* الوسط: عرض اسم الصف */}
+                            <div className="text-center flex-1 px-2">
+                              <span className="inline-block bg-slate-900 border border-slate-800 text-indigo-400 text-xs sm:text-sm font-bold px-3 py-1 rounded-xl shadow-inner">
+                                {period.className ? period.className : 'الصف غير محدد'}
+                              </span>
+                            </div>
+
+                            {/* جهة اليسار: اسم المادة */}
+                            <div className="text-left min-w-[120px]">
+                              <span className={`text-sm sm:text-base font-black tracking-wide ${
+                                isFilled 
+                                  ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white' 
+                                  : 'text-slate-600 text-xs italic'
+                              }`}>
+                                {period.subject || 'حصة فراغ'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>⏰</span> <span className="text-slate-400">الوقت:</span> <span className="font-bold text-white font-mono">{period.time || '---'}</span>
+                            </div>
+                            <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>👨‍🏫</span> <span className="text-slate-400">المدرس:</span> <span className="font-bold text-white">{period.teacher || '---'}</span>
+                            </div>
+                            <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-slate-300 flex items-center gap-2">
+                              <span>🚪</span> <span className="text-slate-400">القاعة:</span> <span className="font-bold text-white">{period.room || '---'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
+
+              {/* العمود الأيسر: الطالب الذكي + الإعلان الرسمي + الطباعة */}
+              <div className="lg:col-span-1 space-y-4 sidebar-panel">
+                <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
+                  <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
+
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-indigo-500/40 shadow-xl bg-slate-950 flex items-center justify-center">
+                    <img 
+                      src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=400" 
+                      alt="طالب المدرسة الذكي" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                    <span className="absolute bottom-2 bg-indigo-600 text-white text-[9px] px-2 py-0.5 rounded-full font-bold shadow-md">
+                      🤖 AI Student
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-white">المساعد الذكي للجدول</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed px-1">
+                      جاهز لمتابعة حصصك الدراسية وإدارة المواعيد اليومية بكل مرونة.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="relative bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 border-4 border-slate-700/80 rounded-3xl p-3 shadow-2xl">
+                  <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner flex flex-col justify-between min-h-[220px]">
+                    <div className="bg-slate-900/95 border-b border-slate-800 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                        <span className="text-[9px] font-bold tracking-wider text-rose-400 uppercase">LIVE</span>
+                      </div>
+                      {!isEditingAnnouncement && (
+                        <button 
+                          onClick={() => {
+                            setTempAnnouncement(announcement);
+                            setIsEditingAnnouncement(true);
+                          }}
+                          className="text-[10px] text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded transition"
+                        >
+                          تعديل ✏️
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="p-3 flex-1 flex flex-col justify-center relative text-center">
+                      {isEditingAnnouncement ? (
+                        <div className="space-y-2 z-10">
+                          <textarea 
+                            value={tempAnnouncement} 
+                            onChange={(e) => setTempAnnouncement(e.target.value)}
+                            rows={3}
+                            className="w-full bg-slate-900 border border-amber-500/40 rounded-xl p-2 text-xs text-white focus:outline-none"
+                            placeholder="اكتب التنبيه هنا..."
+                          />
+                          <div className="flex gap-1.5">
+                            <button 
+                              onClick={handleSaveAnnouncement}
+                              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1 rounded text-xs transition"
+                            >
+                              بث
+                            </button>
+                            <button 
+                              onClick={() => setIsEditingAnnouncement(false)}
+                              className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded text-xs"
+                            >
+                              إلغاء
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <span className="text-base">📢</span>
+                          <h4 className="text-[10px] font-bold text-amber-400 uppercase">إعلان المدرسة الرسمي</h4>
+                          <p className="text-[11px] text-slate-200 bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl">
+                            "{announcement}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 shadow-xl space-y-2">
+                  <button 
+                    onClick={() => window.print()}
+                    className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2"
+                  >
+                    <span>🖨️</span> طباعة الجدول الشامل (A4)
+                  </button>
+                </div>
+
+              </div>
+
             </div>
           </div>
         )}
 
         {currentView === 'editor' && (
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-slate-900/80 p-5 rounded-3xl border border-slate-800 flex items-center justify-between">
-              <h1 className="text-lg font-bold text-white">محرر الحصص الدراسية</h1>
-              <button onClick={() => setCurrentView('dashboard')} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded-xl">العودة ↩️</button>
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span>✏️</span> محرر الجدول - 
+                  <span className={shiftType === 'morning' ? 'text-amber-400' : 'text-indigo-400'}>
+                    {shiftType === 'morning' ? 'الدوام الصباحي' : 'الدوام الظهري'}
+                  </span>
+                </h1>
+                <p className="text-xs text-slate-400 mt-0.5">عدل المواعيد والحصص واضغط حفظ</p>
+              </div>
+              <button 
+                onClick={() => setCurrentView('dashboard')}
+                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl border border-slate-700 transition"
+              >
+                إلغاء والعودة ↩️
+              </button>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {DAYS.map((day) => (
-                <button
-                  key={day.id}
-                  onClick={() => setSelectedDay(day.id)}
-                  className={`flex-1 py-3 px-3 rounded-xl text-xs font-bold text-center ${selectedDay === day.id ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h2 className="text-xs font-semibold text-slate-300">اختر اليوم لتعديل حصصه:</h2>
+                <button 
+                  onClick={() => handleClearDay(selectedDay)}
+                  className="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl text-xs hover:bg-rose-500/20 transition"
                 >
-                  {day.name}
+                  🗑️ تفريغ هذا اليوم
                 </button>
-              ))}
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {DAYS.map((day) => (
+                  <button
+                    key={day.id}
+                    onClick={() => setSelectedDay(day.id)}
+                    className={`flex-1 min-w-[85px] py-3 px-3 rounded-xl text-xs font-bold text-center transition ${
+                      selectedDay === day.id 
+                        ? shiftType === 'morning'
+                          ? 'bg-amber-500 text-slate-950 shadow-lg'
+                          : 'bg-indigo-600 text-white shadow-lg'
+                        : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    {day.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                <h2 className="text-sm font-bold text-indigo-400">تعديل حصص يوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
-                <button onClick={() => handleClearDay(selectedDay)} className="text-xs text-rose-400 bg-rose-500/10 px-3 py-1 rounded-lg">تفريغ اليوم</button>
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+              <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                <span>📝</span> حصص يوم <span className="text-indigo-400">{DAYS.find(d => d.id === selectedDay)?.name}</span>
+              </h2>
+
+              <div className="space-y-4">
+                {activeSchedule[selectedDay]?.map((period) => (
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner">
+                    <div className="flex items-center gap-2.5 border-b border-slate-800 pb-2">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs font-extrabold">
+                        0{period.periodNumber}
+                      </span>
+                      <h3 className="text-sm font-bold text-white">{period.periodName}</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">المادة</label>
+                        <input 
+                          type="text" 
+                          value={period.subject} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)}
+                          placeholder="مثال: رياضيات" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-amber-400 mb-1">الصف / الشعبة</label>
+                        <input 
+                          type="text" 
+                          value={period.className || ''} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)}
+                          placeholder="مثال: الخامس الابتدائي" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">الوقت</label>
+                        <input 
+                          type="text" 
+                          value={period.time} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'time', e.target.value)}
+                          placeholder="08:00 - 08:45" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono transition" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">الأستاذ</label>
+                        <input 
+                          type="text" 
+                          value={period.teacher} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)}
+                          placeholder="أ. علي" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">القاعة</label>
+                        <input 
+                          type="text" 
+                          value={period.room} 
+                          onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'room', e.target.value)}
+                          placeholder="5" 
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              {activeSchedule[selectedDay]?.map((period) => (
-                <div key={period.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
-                  <span className="text-xs font-bold text-indigo-300">الدرس رقم {period.periodNumber}</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input type="text" value={period.subject} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)} placeholder="اسم المادة (أو فراغ)" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
-                    <input type="text" value={period.className || ''} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)} placeholder="الصف (مثال: الخامس الابتدائي)" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400" />
-                    <input type="text" value={period.teacher} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)} placeholder="اسم الأستاذ" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
-                  </div>
-                </div>
-              ))}
-
-              <button onClick={handleSaveFullSchedule} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-2xl text-sm shadow-xl">
-                💾 حفظ التعديلات والاعتماد
-              </button>
+              <div className="pt-4">
+                <button 
+                  onClick={handleSaveFullSchedule}
+                  className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-2xl shadow-xl transition text-sm"
+                >
+                  <span>💾</span> حفظ الجدول بالكامل والانتقال إلى الواجهة الرئيسية ✨
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -642,45 +1215,207 @@ export default function SmartSchoolTimetable() {
         {currentView === 'super-admin' && (
           <div className="max-w-3xl mx-auto space-y-6">
             {!isSuperAuthenticated ? (
-              <div className="bg-slate-900/80 p-8 rounded-3xl border border-slate-800 text-center space-y-4">
-                <h1 className="text-xl font-bold text-white">لوحة الأدمن العام</h1>
-                <form onSubmit={handleSuperAdminLogin} className="space-y-4 max-w-sm mx-auto">
-                  <input type="password" value={superAdminPass} onChange={(e) => setSuperAdminPass(e.target.value)} placeholder="كلمة المرور" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" required />
-                  <button type="submit" className="w-full bg-amber-500 text-slate-950 font-bold py-3 rounded-xl">دخول</button>
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
+                    👑
+                  </div>
+                  <h1 className="text-2xl font-bold text-white mb-1">لوحة تحكم الأدمن العام</h1>
+                  <p className="text-xs text-slate-400">بوابة الإدارة والأمان لمدارس ميسان</p>
+                </div>
+
+                <form onSubmit={handleSuperAdminLogin} className="space-y-4">
+                  <input 
+                    type="password" 
+                    value={superAdminPass} 
+                    onChange={(e) => setSuperAdminPass(e.target.value)}
+                    placeholder="أدخل كلمة مرور الأدمن العام" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition"
+                    required
+                  />
+                  <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg">
+                    دخول لوحة الأدمن العام 🚀
+                  </button>
                 </form>
-                <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 underline">العودة</button>
+
+                <div className="mt-4 text-center">
+                  <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:underline">
+                    ⬅️ العودة لبوابة تسجيل الدخول
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                  <h2 className="text-sm font-bold text-white">المدارس المسجلة ({registeredSchools.length})</h2>
-                  <button onClick={() => setIsSuperAuthenticated(false)} className="text-xs text-slate-400">قفل اللوحة 🔒</button>
+              <div className="space-y-6">
+                <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full">الإحصائيات العامة للمنصة</span>
+                    <h1 className="text-2xl font-bold text-white mt-2">إدارة المدارس المسجلة</h1>
+                  </div>
+                  <button onClick={() => setIsSuperAuthenticated(false)} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl border border-slate-700">
+                    قفل اللوحة 🔒
+                  </button>
                 </div>
-                <div className="space-y-3">
-                  {registeredSchools.map((s) => (
-                    <div key={s.id} className="bg-slate-950 p-4 rounded-2xl flex justify-between items-center text-xs">
-                      <div>
-                        <span className="font-bold text-white text-sm block">{s.schoolName}</span>
-                        <span className="text-emerald-400">هاتف: {s.phone}</span> | <span className="text-amber-400">الرمز: {s.passwordHash}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleResetPassword(s.schoolName)} className="bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded-xl">تغيير الرمز</button>
-                        <button onClick={() => handleDeleteSchool(s.id, s.schoolName)} className="bg-rose-500/10 text-rose-400 px-3 py-1.5 rounded-xl">حذف</button>
-                      </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center">
+                    <span className="text-2xl font-extrabold text-amber-400">{registeredSchools.length}</span>
+                    <p className="text-xs text-slate-400 mt-1">إجمالي المدارس المسجلة 🏫</p>
+                  </div>
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center">
+                    <span className="text-2xl font-extrabold text-emerald-400">نشط 🟢</span>
+                    <p className="text-xs text-slate-400 mt-1">حالة السيرفر والمنصة</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>📋</span> قائمة المدارس المنضمة للمنصة ({registeredSchools.length}):
+                    </h2>
+                    <button onClick={refreshSchoolsFromStorage} className="text-xs text-indigo-400 hover:underline">
+                      تحديث القائمة 🔄
+                    </button>
+                  </div>
+
+                  {registeredSchools.length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-8">لم تقم أي مدرسة بتسجيل الدخول وإنشاء جدولها حتى الآن.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {registeredSchools.map((school) => (
+                        <div key={school.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-bold text-white">{school.schoolName}</h3>
+                            <p className="text-xs text-emerald-400 mt-0.5 font-mono">📱 الهاتف: {school.phone || 'غير مسجل'}</p>
+                            <p className="text-[11px] text-amber-400/80 mt-0.5">🔑 الرمز: <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{school.passwordHash}</span></p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
+                            <button 
+                              onClick={() => handleResetPassword(school.schoolName)}
+                              className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-2.5 py-1.5 rounded-xl transition font-semibold"
+                            >
+                              🔑 تغيير الرمز
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteSchool(school.id, school.schoolName)}
+                              className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 px-2.5 py-1.5 rounded-xl transition font-semibold"
+                            >
+                              🗑️ حذف
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-                <div className="text-center pt-2">
-                  <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 underline">العودة للرئيسية</button>
+
+                <div className="text-center">
+                  <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:underline">
+                    ⬅️ العودة للصفحة الرئيسية
+                  </button>
                 </div>
               </div>
             )}
           </div>
         )}
+
+        {currentView === 'student' && (
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 text-center shadow-xl space-y-3">
+              <div className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">بوابة الطالب الرسمية ✨</div>
+              <h1 className="text-xl font-bold text-white">{schoolName || 'المدرسة'}</h1>
+              
+              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 justify-center gap-1">
+                <button 
+                  onClick={() => setShiftType('morning')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${shiftType === 'morning' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}
+                >
+                  ☀️ صباحي
+                </button>
+                <button 
+                  onClick={() => setShiftType('afternoon')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${shiftType === 'afternoon' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
+                >
+                  🌙 ظهري
+                </button>
+              </div>
+
+              <button onClick={() => window.print()} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-2.5 rounded-xl border border-slate-700 transition">🖨️ طباعة الجدول / PDF</button>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {DAYS.map((day) => (
+                <button
+                  key={day.id}
+                  onClick={() => setSelectedDay(day.id)}
+                  className={`flex-1 min-w-[75px] py-2.5 px-3 rounded-2xl text-xs font-bold text-center transition ${
+                    selectedDay === day.id ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/80 text-slate-400 border border-slate-800'
+                  }`}
+                >
+                  {day.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 shadow-xl">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <span className="text-sm font-bold text-white">جدول يوم: {DAYS.find(d => d.id === selectedDay)?.name}</span>
+                <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-xl font-mono">
+                  {activeSchedule[selectedDay]?.filter(p => p.subject.trim() !== '').length || 0} دروس
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {activeSchedule[selectedDay]?.map((period) => (
+                  <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-inner">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg w-fit">{period.periodName}</span>
+                      
+                      <span className="text-xs bg-slate-900 text-indigo-300 border border-slate-800 px-2.5 py-0.5 rounded-lg font-bold">
+                        {period.className ? period.className : 'الصف غير محدد'}
+                      </span>
+
+                      <div className="text-left">
+                        <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-white">
+                          {period.subject || 'حصة فراغ'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
+                      <div className="bg-slate-900 p-2 rounded-xl font-mono">⏰ {period.time || '---'}</div>
+                      <div className="bg-slate-900 p-2 rounded-xl">👨‍🏫 {period.teacher || '---'}</div>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-900/40 px-3 py-1.5 rounded-xl text-xs text-slate-400">
+                      <span>🚪 القاعة:</span>
+                      <span className="font-semibold text-white">{period.room || '---'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-center pt-2">
+              <button onClick={() => setCurrentView('dashboard')} className="text-xs text-slate-400 hover:text-white underline">⚙️ العودة لواجهة المدرسة</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <footer className="mt-8 pt-4 border-t border-slate-800 text-center text-xs text-slate-400 screen-only">
-        إعداد وتصميم المهندس مبدر الياسري | دعم فني واتساب: <span dir="ltr">07744288885</span>
+      <footer className="mt-8 pt-4 border-t border-slate-800/80 text-center flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 max-w-7xl mx-auto w-full px-4 screen-only">
+        <div>
+          <span>إعداد وتصميم المهندس المبرمج مبدر الياسري</span>
+        </div>
+        <div>
+          <a 
+            href="https://wa.me/9647744288885" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl transition font-medium"
+          >
+            <span>💬</span> للاستفسار واتساب: <span dir="ltr" className="font-mono">07744288885</span>
+          </a>
+        </div>
       </footer>
 
     </main>
