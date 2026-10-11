@@ -223,7 +223,7 @@ export default function SmartSchoolTimetable() {
     updateClock();
     const timer = setInterval(updateClock, 1000);
 
-    refreshSchoolsFromStorage();
+    const schools = refreshSchoolsFromStorage();
 
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
     const savedSchoolName = localStorage.getItem('currentSchoolName');
@@ -231,6 +231,13 @@ export default function SmartSchoolTimetable() {
     if (savedAdmin === 'true' && savedSchoolName) {
       setSchoolName(savedSchoolName);
       
+      const foundSchool = schools.find(s => s.schoolName === savedSchoolName);
+      if (foundSchool) {
+        setPhone(foundSchool.phone);
+        if (foundSchool.governorate) setGovernorate(foundSchool.governorate);
+        if (foundSchool.directorate) setDirectorate(foundSchool.directorate);
+      }
+
       const savedMorning = localStorage.getItem(`schedule_morning_${savedSchoolName}`);
       const savedAfternoon = localStorage.getItem(`schedule_afternoon_${savedSchoolName}`);
       const savedAnnouncement = localStorage.getItem(`announcement_${savedSchoolName}`);
@@ -269,37 +276,38 @@ export default function SmartSchoolTimetable() {
     window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
+  // 🔑 تسجيل الدخول المركزي المحدث والثابت
   const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginSuccess('');
 
-    const inputPhoneOrName = schoolName.trim().toLowerCase();
+    const inputName = schoolName.trim();
     const inputPass = password.trim();
 
-    if (!inputPhoneOrName || !inputPass) {
-      setLoginError('يرجى إدخال اسم المدرسة أو رقم الموبايل وكلمة المرور');
+    if (!inputName || !inputPass) {
+      setLoginError('يرجى إدخال اسم المدرسة وكلمة المرور');
       return;
     }
 
     const currentSchoolsList = refreshSchoolsFromStorage();
 
-    const targetSchool = currentSchoolsList.find(s => {
-      const nameMatch = s.schoolName.trim().toLowerCase() === inputPhoneOrName;
-      const phoneMatch = s.phone.trim().replace(/\s+/g, '') === inputPhoneOrName.replace(/\s+/g, '');
-      return nameMatch || phoneMatch;
-    });
+    const targetSchool = currentSchoolsList.find(s => 
+      s.schoolName.trim().toLowerCase() === inputName.toLowerCase() ||
+      s.phone.trim().replace(/\s+/g, '') === inputName.replace(/\s+/g, '')
+    );
 
     if (!targetSchool) {
-      setLoginError('اسم المدرسة أو رقم الموبايل غير مسجل بالنظام!');
+      setLoginError('هذه المدرسة غير مسجلة في النظام المركزي! يرجى اختيار إنشاء حساب جديد.');
       return;
     }
 
     if (targetSchool.passwordHash.trim() !== inputPass) {
-      setLoginError('كلمة المرور غير صحيحة! يرجى التأكد من الرمز السري.');
+      setLoginError('كلمة المرور غير صحيحة!');
       return;
     }
 
+    // حفظ واعتماد الجلسة مركزياً
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('currentSchoolName', targetSchool.schoolName);
     setSchoolName(targetSchool.schoolName);
@@ -320,6 +328,7 @@ export default function SmartSchoolTimetable() {
     setCurrentView('dashboard');
   };
 
+  // 📝 تسجيل مدرسة جديدة مركزياً في النظام
   const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -329,41 +338,47 @@ export default function SmartSchoolTimetable() {
     const trimmedPhone = phone.trim();
     const trimmedPass = password.trim();
 
-    if (!trimmedName || !trimmedPhone || !trimmedPass || !governorate.trim() || !directorate.trim()) {
-      setLoginError('يرجى تعبئة كافة حقول التسجيل بضمنها رقم الهاتف');
+    if (!trimmedName || !trimmedPhone || !trimmedPass) {
+      setLoginError('يرجى إدخال اسم المدرسة، رقم الهاتف، وكلمة المرور بدقة');
       return;
     }
 
     const currentSchoolsList = refreshSchoolsFromStorage();
 
-    const existingName = currentSchoolsList.find(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
-    if (existingName) {
-      setLoginError('اسم هذه المدرسة مسجل مسبقاً! يمكنك تسجيل الدخول إليها.');
-      return;
+    // التحقق هل المدرسة مسجلة مسبقاً
+    const existingIndex = currentSchoolsList.findIndex(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+
+    let updatedSchoolsList = [...currentSchoolsList];
+
+    if (existingIndex >= 0) {
+      // تحديث بيانات المدرسة القائمة مركزياً (كلمة المرور والهاتف)
+      updatedSchoolsList[existingIndex] = {
+        ...updatedSchoolsList[existingIndex],
+        phone: trimmedPhone,
+        passwordHash: trimmedPass,
+        governorate,
+        directorate,
+        lastUpdated: new Date().toLocaleDateString('ar-IQ'),
+      };
+    } else {
+      // إضافة سجل جديد تماماً
+      const newSchoolRecord: SchoolRecord = {
+        id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
+        schoolName: trimmedName,
+        phone: trimmedPhone,
+        governorate,
+        directorate,
+        passwordHash: trimmedPass,
+        lastUpdated: new Date().toLocaleDateString('ar-IQ'),
+        periodsCount: 0,
+      };
+      updatedSchoolsList = [newSchoolRecord, ...currentSchoolsList];
     }
 
-    const existingPhone = currentSchoolsList.find(s => s.phone.trim() === trimmedPhone);
-    if (existingPhone) {
-      setLoginError('رقم الموبايل هذا مسجل مسبقاً لمدرسة أخرى!');
-      return;
-    }
-
-    const newSchoolRecord: SchoolRecord = {
-      id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
-      schoolName: trimmedName,
-      phone: trimmedPhone,
-      governorate,
-      directorate,
-      passwordHash: trimmedPass,
-      lastUpdated: new Date().toLocaleDateString('ar-IQ'),
-      periodsCount: 0,
-    };
-
-    const updatedSchoolsList = [newSchoolRecord, ...currentSchoolsList];
     localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedSchoolsList));
     setRegisteredSchools(updatedSchoolsList);
 
-    setLoginSuccess('✅ تم إنشاء وتثبيت الحساب بنجاح! يمكنك الآن تسجيل الدخول مباشرة.');
+    setLoginSuccess('✅ تم حفظ بيانات المدرسة مركزياً بنجاح! يمكنك تسجيل الدخول بالرمز ورقم الهاتف الآن.');
     setAuthTab('login');
     setPassword('');
   };
@@ -396,7 +411,7 @@ export default function SmartSchoolTimetable() {
       });
       localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
       setRegisteredSchools(updatedList);
-      alert('تم تحديث كلمة المرور بنجاح!');
+      alert('تم تحديث كلمة المرور مركزياً بنجاح!');
     }
   };
 
@@ -470,7 +485,6 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
-      {/* 🖨️ تخصيص الطباعة: ورقة واحدة بالعرض (A4 Landscape) تضم كافة الأيام بدون زيادات */}
       <style jsx global>{`
         @media print {
           @page {
@@ -518,7 +532,6 @@ export default function SmartSchoolTimetable() {
         ))}
       </datalist>
 
-      {/* 🖨️ نموذج الطباعة المخصص الشامل لجميع أيام الأسبوع (يظهر فقط أثناء الطباعة) */}
       <div className="hidden print-container">
         <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-2">
           <div className="flex items-center gap-3">
@@ -585,7 +598,6 @@ export default function SmartSchoolTimetable() {
       </div>
 
       <div className="screen-only">
-        {/* 1. تسجيل الدخول / إنشاء حساب جديد */}
         {currentView === 'login' && (
           <div className="max-w-md mx-auto mt-8 bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="text-center">
@@ -611,33 +623,33 @@ export default function SmartSchoolTimetable() {
                   authTab === 'register' ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                ✨ إنشاء حساب جديد
+                ✨ إنشاء وحفظ الحساب
               </button>
             </div>
 
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة أو رقم الموبايل</label>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
                     value={schoolName} 
                     onChange={(e) => setSchoolName(e.target.value)}
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                    placeholder="أدخل اسم المدرسة أو رقم الهاتف المسجل"
+                    placeholder="اختر أو اكتب اسم المدرسة"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور</label>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور المركزية</label>
                   <input 
                     type="password" 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                    placeholder="أدخل كلمة المرور الخاصة بمدرستك"
+                    placeholder="أدخل الرمز السري الخاص بمدرستك"
                     required
                   />
                 </div>
@@ -680,7 +692,7 @@ export default function SmartSchoolTimetable() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اختر أو اكتب اسم المدرسة</label>
+                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اسم المدرسة</label>
                   <input 
                     type="text" 
                     list="missan-schools-list"
@@ -693,7 +705,7 @@ export default function SmartSchoolTimetable() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم هاتف المسؤول (أساسي للتوثيق والاسترجاع)</label>
+                  <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم هاتف المسؤول</label>
                   <input 
                     type="tel" 
                     value={phone} 
@@ -705,13 +717,13 @@ export default function SmartSchoolTimetable() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 تعيين كلمة مرور جديدة</label>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 تعيين كلمة المرور المركزية</label>
                   <input 
                     type="password" 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                    placeholder="تعيين كلمة مرور خاصة بالمدرسة"
+                    placeholder="رمز سري خاص بالمدرسة"
                     required
                   />
                 </div>
@@ -722,7 +734,7 @@ export default function SmartSchoolTimetable() {
                   type="submit"
                   className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm"
                 >
-                  تأكيد وتسجيل المدرسة رسمياً 📝
+                  حفظ وتثبيت الحساب مركزياً 📝
                 </button>
               </form>
             )}
@@ -735,10 +747,8 @@ export default function SmartSchoolTimetable() {
           </div>
         )}
 
-        {/* 2. واجهة المدرسة الرئيسية (Dashboard) */}
         {currentView === 'dashboard' && (
           <div className="max-w-7xl mx-auto space-y-6">
-            
             <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer hover:border-indigo-500 transition shadow-inner">
@@ -762,7 +772,7 @@ export default function SmartSchoolTimetable() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-semibold">
-                      ● لوحة تحكم المدرسة النشطة
+                      ● مسجل ومحفوظ مركزياً
                     </span>
                   </div>
                   <h1 className="text-2xl font-black text-white mt-2 flex items-center gap-2">
@@ -872,7 +882,6 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* العمود الأوسط - شاشة عرض جدول اليوم بالحاسوب والموبايل */}
               <div className="lg:col-span-2 space-y-5">
                 <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -967,7 +976,6 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              {/* الشريط الجانبي الأيسر */}
               <div className="lg:col-span-1 space-y-4 sidebar-panel">
                 <div className="bg-slate-900/85 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center space-y-3.5 relative overflow-hidden group">
                   <div className="absolute -top-12 -left-12 w-36 h-36 bg-indigo-600/20 rounded-full blur-2xl pointer-events-none"></div>
@@ -1065,7 +1073,6 @@ export default function SmartSchoolTimetable() {
           </div>
         )}
 
-        {/* 3. شاشة تعديل الجدول (Editor) */}
         {currentView === 'editor' && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
@@ -1202,7 +1209,6 @@ export default function SmartSchoolTimetable() {
           </div>
         )}
 
-        {/* 4. لوحة تحكم الأدمن العام */}
         {currentView === 'super-admin' && (
           <div className="max-w-3xl mx-auto space-y-6">
             {!isSuperAuthenticated ? (
@@ -1301,7 +1307,7 @@ export default function SmartSchoolTimetable() {
                 </div>
 
                 <div className="text-center">
-                  <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:text-white underline">
+                  <button onClick={() => setCurrentView('login')} className="text-xs text-slate-400 hover:underline">
                     ⬅️ العودة للصفحة الرئيسية
                   </button>
                 </div>
@@ -1310,7 +1316,6 @@ export default function SmartSchoolTimetable() {
           </div>
         )}
 
-        {/* 5. واجهة الطالب */}
         {currentView === 'student' && (
           <div className="max-w-md mx-auto space-y-4">
             <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 text-center shadow-xl space-y-3">
