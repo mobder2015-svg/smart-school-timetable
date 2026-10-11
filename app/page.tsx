@@ -195,81 +195,70 @@ export default function SmartSchoolTimetable() {
   const activeSchedule = shiftType === 'morning' ? morningSchedule : afternoonSchedule;
   const setActiveSchedule = shiftType === 'morning' ? setMorningSchedule : setAfternoonSchedule;
 
-  // جلب المدارس من السيرفر أو التخزين الآمن
-  const refreshSchools = async (): Promise<SchoolRecord[]> => {
-    try {
-      const res = await fetch('/api/schools');
-      if (res.ok) {
-        const data = await res.json();
-        setRegisteredSchools(data);
-        return data;
+  const refreshSchools = (): SchoolRecord[] => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('globalRegisteredSchools');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          setRegisteredSchools(parsed);
+          return parsed;
+        } catch (e) {
+          console.error(e);
+        }
       }
-    } catch (e) {
-      console.error(e);
     }
+    setRegisteredSchools([]);
     return [];
   };
 
   useEffect(() => {
-    refreshSchools();
+    const schools = refreshSchools();
     const savedAdmin = localStorage.getItem('isAdminAuthenticated');
     const savedSchoolName = localStorage.getItem('currentSchoolName');
     
     if (savedAdmin === 'true' && savedSchoolName) {
       setSchoolName(savedSchoolName);
-      loadSchoolData(savedSchoolName);
+      const found = schools.find(s => s.schoolName === savedSchoolName);
+      if (found) {
+        setPhone(found.phone);
+        if (found.governorate) setGovernorate(found.governorate);
+        if (found.directorate) setDirectorate(found.directorate);
+      }
+
+      const savedMorning = localStorage.getItem(`schedule_morning_${savedSchoolName}`);
+      const savedAfternoon = localStorage.getItem(`schedule_afternoon_${savedSchoolName}`);
+      const savedAnn = localStorage.getItem(`announcement_${savedSchoolName}`);
+      const savedLogo = localStorage.getItem(`logo_${savedSchoolName}`);
+
+      if (savedAnn) setAnnouncement(savedAnn);
+      if (savedLogo) setSchoolLogo(savedLogo);
+      if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
+      if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
+
       setCurrentView('dashboard');
     }
   }, []);
 
-  const loadSchoolData = async (name: string) => {
-    try {
-      const res = await fetch(`/api/schools?name=${encodeURIComponent(name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.school) {
-          setPhone(data.school.phone);
-          setGovernorate(data.school.governorate);
-          setDirectorate(data.school.directorate);
-        }
-        if (data.morning) setMorningSchedule(data.morning);
-        if (data.afternoon) setAfternoonSchedule(data.afternoon);
-        if (data.announcement) setAnnouncement(data.announcement);
-        if (data.logo) setSchoolLogo(data.logo);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = async () => {
+      reader.onloadend = () => {
         const base64String = reader.result as string;
         setSchoolLogo(base64String);
-        if (schoolName) {
-          await fetch('/api/schools', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'saveLogo', schoolName, logo: base64String })
-          });
-        }
+        if (schoolName) localStorage.setItem(`logo_${schoolName}`, base64String);
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleWhatsAppShare = () => {
-    const message = encodeURIComponent(
-      `جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}\nيمكنكم الاطلاع على الجدول عبر الرابط المباشر.`
-    );
+    const message = encodeURIComponent(`جدول الحصص الأسبوعي - ${schoolName || 'منصة المدارس الذكية'}`);
     window.open(`https://wa.me/?text=${message}`, "_blank");
   };
 
-  // تسجيل الدخول الآمن والمدعوم مركزياً
-  const handleSchoolLogin = async (e: React.FormEvent) => {
+  const handleSchoolLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginSuccess('');
@@ -282,35 +271,40 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    try {
-      const res = await fetch('/api/schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', schoolName: inputName, password: inputPass })
-      });
-      const data = await res.json();
+    const schoolsList = refreshSchools();
+    const targetSchool = schoolsList.find(s => s.schoolName.trim().toLowerCase() === inputName.toLowerCase());
 
-      if (!res.ok || !data.success) {
-        setLoginError(data.message || 'خطأ في اسم المدرسة أو كلمة المرور!');
-        return;
-      }
-
-      localStorage.setItem('isAdminAuthenticated', 'true');
-      localStorage.setItem('currentSchoolName', data.school.schoolName);
-      setSchoolName(data.school.schoolName);
-      setPhone(data.school.phone);
-      setGovernorate(data.school.governorate);
-      setDirectorate(data.school.directorate);
-
-      await loadSchoolData(data.school.schoolName);
-      setCurrentView('dashboard');
-    } catch (e) {
-      setLoginError('حدث خطأ في الاتصال بالسيرفر.');
+    if (!targetSchool) {
+      setLoginError('هذه المدرسة غير مسجلة! يرجى اختيار تسجيل مدرسة جديدة.');
+      return;
     }
+
+    if (targetSchool.passwordHash.trim() !== inputPass) {
+      setLoginError('كلمة المرور غير صحيحة!');
+      return;
+    }
+
+    localStorage.setItem('isAdminAuthenticated', 'true');
+    localStorage.setItem('currentSchoolName', targetSchool.schoolName);
+    setSchoolName(targetSchool.schoolName);
+    setPhone(targetSchool.phone);
+    setGovernorate(targetSchool.governorate);
+    setDirectorate(targetSchool.directorate);
+
+    const savedMorning = localStorage.getItem(`schedule_morning_${targetSchool.schoolName}`);
+    const savedAfternoon = localStorage.getItem(`schedule_afternoon_${targetSchool.schoolName}`);
+    const savedAnn = localStorage.getItem(`announcement_${targetSchool.schoolName}`);
+    const savedLogo = localStorage.getItem(`logo_${targetSchool.schoolName}`);
+
+    if (savedAnn) setAnnouncement(savedAnn);
+    if (savedLogo) setSchoolLogo(savedLogo);
+    if (savedMorning) { try { setMorningSchedule(JSON.parse(savedMorning)); } catch (e) {} }
+    if (savedAfternoon) { try { setAfternoonSchedule(JSON.parse(savedAfternoon)); } catch (e) {} }
+
+    setCurrentView('dashboard');
   };
 
-  // تسجيل مدرسة جديدة وحفظها نهائياً
-  const handleSchoolRegister = async (e: React.FormEvent) => {
+  const handleSchoolRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setLoginSuccess('');
@@ -324,106 +318,74 @@ export default function SmartSchoolTimetable() {
       return;
     }
 
-    try {
-      const res = await fetch('/api/schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          schoolName: trimmedName,
-          phone: trimmedPhone,
-          governorate,
-          directorate,
-          password: trimmedPass
-        })
+    const schoolsList = refreshSchools();
+    const existingIndex = schoolsList.findIndex(s => s.schoolName.trim().toLowerCase() === trimmedName.toLowerCase());
+
+    let updatedList = [...schoolsList];
+    if (existingIndex >= 0) {
+      updatedList[existingIndex] = { ...updatedList[existingIndex], phone: trimmedPhone, passwordHash: trimmedPass };
+    } else {
+      updatedList.unshift({
+        id: trimmedName.toLowerCase().replace(/\s+/g, '-'),
+        schoolName: trimmedName,
+        phone: trimmedPhone,
+        governorate,
+        directorate,
+        passwordHash: trimmedPass,
+        lastUpdated: new Date().toLocaleDateString('ar-IQ'),
+        periodsCount: 0,
       });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setLoginError(data.message || 'حدث خطأ أثناء التسجيل.');
-        return;
-      }
-
-      await refreshSchools();
-      setLoginSuccess('✅ تم حفظ بيانات الحساب نهائياً بنجاح! يمكنك تسجيل الدخول الآن.');
-      setAuthTab('login');
-      setPassword('');
-    } catch (e) {
-      setLoginError('خطأ في الاتصال بالخادم.');
     }
+
+    localStorage.setItem('globalRegisteredSchools', JSON.stringify(updatedList));
+    setRegisteredSchools(updatedList);
+    setLoginSuccess('✅ تم حفظ بيانات الحساب بنجاح! يمكنك تسجيل الدخول الآن.');
+    setAuthTab('login');
+    setPassword('');
   };
 
-  const handleDeleteSchool = async (schoolId: string, name: string) => {
-    if (confirm(`هل أنت متأكد من حذف مدرسة (${name}) نهائياً؟`)) {
-      await fetch('/api/schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', schoolName: name })
-      });
-      await refreshSchools();
+  const handleDeleteSchool = (schoolId: string, name: string) => {
+    if (confirm(`هل أنت متأكد من حذف مدرسة (${name})؟`)) {
+      const schoolsList = refreshSchools();
+      const updated = schoolsList.filter(s => s.id !== schoolId && s.schoolName !== name);
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updated));
+      setRegisteredSchools(updated);
       if (schoolName === name) handleLogout();
       alert('تم الحذف بنجاح.');
     }
   };
 
-  const handleResetPassword = async (name: string) => {
+  const handleResetPassword = (name: string) => {
     const newPass = prompt(`أدخل كلمة المرور الجديدة لمدرسة (${name}):`);
     if (newPass && newPass.trim() !== '') {
-      await fetch('/api/schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'resetPassword', schoolName: name, newPassword: newPass.trim() })
-      });
-      await refreshSchools();
-      alert('تم تحديث كلمة المرور بنجاح!');
+      const schoolsList = refreshSchools();
+      const updated = schoolsList.map(s => s.schoolName === name ? { ...s, passwordHash: newPass.trim() } : s);
+      localStorage.setItem('globalRegisteredSchools', JSON.stringify(updated));
+      setRegisteredSchools(updated);
+      alert('تم تحديث الرمز بنجاح!');
     }
   };
 
-  const handleSaveAnnouncement = async () => {
+  const handleSaveAnnouncement = () => {
     if (!tempAnnouncement.trim()) return;
     setAnnouncement(tempAnnouncement);
+    localStorage.setItem(`announcement_${schoolName}`, tempAnnouncement);
     setIsEditingAnnouncement(false);
-
-    await fetch('/api/schools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'saveAnnouncement', schoolName, announcement: tempAnnouncement })
-    });
   };
 
   const handlePeriodFieldChange = (dayId: string, periodId: string, field: keyof Period, value: string) => {
-    const updatedDayPeriods = activeSchedule[dayId].map(p => {
-      if (p.id === periodId) return { ...p, [field]: value };
-      return p;
-    });
-
-    setActiveSchedule({
-      ...activeSchedule,
-      [dayId]: updatedDayPeriods,
-    });
+    const updated = activeSchedule[dayId].map(p => p.id === periodId ? { ...p, [field]: value } : p);
+    setActiveSchedule({ ...activeSchedule, [dayId]: updated });
   };
 
-  const handleSaveFullSchedule = async () => {
-    await fetch('/api/schools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'saveSchedule',
-        schoolName,
-        shiftType,
-        scheduleData: activeSchedule
-      })
-    });
-
+  const handleSaveFullSchedule = () => {
+    localStorage.setItem(`schedule_${shiftType}_${schoolName}`, JSON.stringify(activeSchedule));
     setCurrentView('dashboard');
   };
 
   const handleClearDay = (dayId: string) => {
-    if (confirm(`تفريغ جدول يوم ${DAYS.find(d => d.id === dayId)?.name}؟`)) {
-      setActiveSchedule({
-        ...activeSchedule,
-        [dayId]: createDefaultDayPeriods(shiftType === 'afternoon'),
-      });
+    if (confirm('تفريغ جدول هذا اليوم؟')) {
+      setActiveSchedule({ ...activeSchedule, [dayId]: createDefaultDayPeriods(shiftType === 'afternoon') });
     }
   };
 
@@ -448,19 +410,14 @@ export default function SmartSchoolTimetable() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans flex flex-col justify-between relative overflow-hidden selection:bg-indigo-500 selection:text-white" dir="rtl">
       
-      <style jsx global>{`
-        @media print {
-          @page { size: A4 landscape; margin: 6mm; }
-          body { background: white !important; color: black !important; font-size: 11px !important; }
-          .screen-only, header, .sidebar-panel, footer, button, nav { display: none !important; }
-          .print-container { display: block !important; width: 100% !important; color: black !important; }
-          .print-table { width: 100% !important; border-collapse: collapse !important; margin-top: 10px !important; }
-          .print-table th, .print-table td { border: 1.5px solid #000 !important; padding: 6px 4px !important; text-align: center !important; vertical-align: middle !important; }
-          .print-table th { background-color: #f1f5f9 !important; font-weight: bold !important; color: black !important; }
-        }
-      `}</style>
+      {/* قائمة المدارس المساعدة داخل حقول الإدخال */}
+      <datalist id="missan-schools-list">
+        {MISSAN_SCHOOLS.map((school, index) => (
+          <option key={index} value={school} />
+        ))}
+      </datalist>
 
-      {/* نموذج الطباعة الشامل */}
+      {/* نموذج الطباعة */}
       <div className="hidden print-container">
         <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-2">
           <div className="flex items-center gap-3">
@@ -471,121 +428,64 @@ export default function SmartSchoolTimetable() {
             </div>
           </div>
           <div className="text-left">
-            <h2 className="text-base font-bold">جدول الحصص الأسبوعي الشامل</h2>
-            <p className="text-xs font-semibold">الدوام: {shiftType === 'morning' ? 'الصباحي ☀️' : 'الظهري 🌙'}</p>
+            <h2 className="text-base font-bold">جدول الحصص الأسبوعي</h2>
+            <p className="text-xs font-semibold">الدوام: {shiftType === 'morning' ? 'الصباحي' : 'الظهري'}</p>
           </div>
         </div>
-
-        <table className="print-table">
+        <table className="print-table w-full border-collapse border border-black">
           <thead>
             <tr>
-              <th className="w-24">اليوم / الحصة</th>
-              <th>الدرس الأول</th>
-              <th>الدرس الثاني</th>
-              <th>الدرس الثالث</th>
-              <th>الدرس الرابع</th>
-              <th>الدرس الخامس</th>
-              <th>الدرس السادس</th>
+              <th className="border border-black p-2">اليوم</th>
+              {[1, 2, 3, 4, 5, 6].map(n => <th key={n} className="border border-black p-2">الدرس {n}</th>)}
             </tr>
           </thead>
           <tbody>
-            {DAYS.map((day) => {
-              const dayPeriods = activeSchedule[day.id] || [];
-              return (
-                <tr key={day.id}>
-                  <td className="font-bold bg-slate-100">{day.name}</td>
-                  {[1, 2, 3, 4, 5, 6].map((num) => {
-                    const period = dayPeriods.find((p) => p.periodNumber === num);
-                    const subject = period?.subject?.trim();
-                    const className = period?.className?.trim();
-                    return (
-                      <td key={num}>
-                        {subject ? (
-                          <div>
-                            <div className="font-bold text-xs">{subject}</div>
-                            {className && <div className="text-[10px] text-slate-700">{className}</div>}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">-</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {DAYS.map(day => (
+              <tr key={day.id}>
+                <td className="border border-black p-2 font-bold">{day.name}</td>
+                {[1, 2, 3, 4, 5, 6].map(n => {
+                  const p = activeSchedule[day.id]?.find(x => x.periodNumber === n);
+                  return (
+                    <td key={n} className="border border-black p-2 text-center text-xs">
+                      {p?.subject || '-'}{p?.className ? ` (${p.className})` : ''}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
-
-        <div className="mt-4 flex justify-between text-[10px] font-bold border-t border-slate-300 pt-2">
-          <span>إدارة المدرسة: ________________</span>
-          <span>الختم الرسمي: ________________</span>
-          <span>إعداد المهندس مبدر الياسري</span>
-        </div>
       </div>
 
       <div className="screen-only">
         {currentView === 'login' && (
           <div className="max-w-md mx-auto mt-8 bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
-                🔒
+              <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
+                🏫
               </div>
-              <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 mb-1">منصة المدارس الذكية</h1>
-              <p className="text-xs text-slate-400">نظام موثوق وحفظ دائم للمدارس</p>
+              <h1 className="text-2xl font-black text-white mb-1">منصة المدارس الذكية</h1>
+              <p className="text-xs text-slate-400">اختر مدرستك من القائمة وسجل دخولك</p>
             </div>
 
             <div className="flex bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
-              <button
-                onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                  authTab === 'login' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'
-                }`}
-              >
-                🔑 تسجيل الدخول
-              </button>
-              <button
-                onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                  authTab === 'register' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'
-                }`}
-              >
-                ✨ تسجيل مدرسة جديدة
-              </button>
+              <button onClick={() => { setAuthTab('login'); setLoginError(''); setLoginSuccess(''); }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${authTab === 'login' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>🔑 تسجيل الدخول</button>
+              <button onClick={() => { setAuthTab('register'); setLoginError(''); setLoginSuccess(''); }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${authTab === 'register' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>✨ تسجيل مدرسة جديدة</button>
             </div>
 
             {authTab === 'login' && (
               <form onSubmit={handleSchoolLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة</label>
-                  <input 
-                    type="text" 
-                    value={schoolName} 
-                    onChange={(e) => setSchoolName(e.target.value)}
-                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="اكتب اسم المدرسة"
-                    required
-                  />
+                  <label className="block text-xs font-semibold text-amber-400 mb-1.5">🏷️ اسم المدرسة (اكتب أو اختر من القائمة)</label>
+                  <input type="text" list="missan-schools-list" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="ابحث أو اختر اسم المدرسة..." required />
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور</label>
-                  <input 
-                    type="password" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="أدخل كلمة المرور"
-                    required
-                  />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="أدخل كلمة المرور" required />
                 </div>
-
                 {loginError && <p className="text-xs text-rose-400 text-center bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
                 {loginSuccess && <p className="text-xs text-emerald-400 text-center bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">{loginSuccess}</p>}
-
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition text-sm shadow-lg">
-                  تسجيل الدخول 🚀
-                </button>
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition text-sm">تسجيل الدخول 🚀</button>
               </form>
             )}
 
@@ -597,47 +497,41 @@ export default function SmartSchoolTimetable() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1.5">🏫 مديرية التربية</label>
-                  <input type="text" value={directorate} onChange={(e) => setDirectorate(e.target.value)} className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" required />
+                  <input type="text" value={directorate} onChange={(e) => setDirectorate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اسم المدرسة</label>
-                  <input type="text" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="مثال: ثانوية المستقبل الأهلية" required />
+                  <label className="block text-xs font-semibold text-rose-400 mb-1.5">🏷️ اسم المدرسة (من القائمة أو اكتبه)</label>
+                  <input type="text" list="missan-schools-list" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="اختر أو اكتب اسم المدرسة" required />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-emerald-400 mb-1.5">📱 رقم الهاتف</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="07700000000" required />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="07700000000" required />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-amber-400 mb-1.5">🔑 كلمة المرور</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="تعيين رمز سري" required />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" placeholder="رمز سري للحساب" required />
                 </div>
-
                 {loginError && <p className="text-xs text-rose-400 text-center bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{loginError}</p>}
-
-                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition text-sm shadow-lg">
-                  حفظ وتسجيل الحساب نهائياً 📝
-                </button>
+                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition text-sm">حفظ وتسجيل الحساب 📝</button>
               </form>
             )}
 
             <div className="pt-4 border-t border-slate-800 text-center">
-              <button onClick={() => { refreshSchools(); setCurrentView('super-admin'); }} className="text-xs text-amber-400 hover:underline font-semibold">
-                ⭐ لوحة تحكم الأدمن العام
-              </button>
+              <button onClick={() => { refreshSchools(); setCurrentView('super-admin'); }} className="text-xs text-amber-400 hover:underline font-semibold">⭐ لوحة تحكم الأدمن العام</button>
             </div>
           </div>
         )}
 
         {currentView === 'dashboard' && (
           <div className="max-w-7xl mx-auto space-y-6">
-            <div className="bg-slate-900/80 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="relative group w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-500/40 flex items-center justify-center bg-slate-950 overflow-hidden cursor-pointer">
                   {schoolLogo ? <img src={schoolLogo} alt="Logo" className="w-full h-full object-cover" /> : <Upload className="w-5 h-5 text-indigo-400" />}
                   <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                 </div>
                 <div>
-                  <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full font-semibold">● متصل ومحفوظ بثبات</span>
+                  <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full font-semibold">● مسجل ومحفوظ</span>
                   <h1 className="text-2xl font-black text-white mt-2 flex items-center gap-2">
                     <Building2 className="w-6 h-6 text-indigo-400" />
                     {schoolName}
@@ -646,7 +540,7 @@ export default function SmartSchoolTimetable() {
                 </div>
               </div>
 
-              <div className="flex bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800">
+              <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
                 <button onClick={() => setShiftType('morning')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${shiftType === 'morning' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>☀️ صباحي</button>
                 <button onClick={() => setShiftType('afternoon')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${shiftType === 'afternoon' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>🌙 ظهري</button>
               </div>
@@ -658,7 +552,6 @@ export default function SmartSchoolTimetable() {
               </div>
             </div>
 
-            {/* عرض أزرار أيام الأسبوع */}
             <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 space-y-4">
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {DAYS.map((day) => (
@@ -675,16 +568,25 @@ export default function SmartSchoolTimetable() {
               </div>
 
               <div className="space-y-3">
-                {activeSchedule[selectedDay]?.map((period) => (
-                  <div key={period.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs">0{period.periodNumber}</span>
-                      <span className="text-xs text-slate-400">{period.periodName}</span>
+                {activeSchedule[selectedDay]?.map((period) => {
+                  const isFilled = period.subject.trim() !== '';
+                  return (
+                    <div key={period.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-[120px]">
+                        <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xs">0{period.periodNumber}</span>
+                        <span className="text-xs text-slate-400 font-bold">{period.periodName}</span>
+                      </div>
+                      <div className="text-center flex-1">
+                        <span className="bg-slate-900 border border-slate-800 text-indigo-400 text-xs font-bold px-3 py-1 rounded-xl">
+                          {period.className || 'الصف غير محدد'}
+                        </span>
+                      </div>
+                      <div className="text-left min-w-[120px]">
+                        <span className="text-sm sm:text-base font-black text-amber-400">{period.subject || 'حصة فراغ'}</span>
+                      </div>
                     </div>
-                    <span className="text-xs bg-slate-900 text-indigo-300 px-3 py-1 rounded-lg font-bold">{period.className || 'الصف غير محدد'}</span>
-                    <span className="text-base font-black text-amber-400">{period.subject || 'حصة فراغ'}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="pt-4 text-center">
@@ -714,39 +616,24 @@ export default function SmartSchoolTimetable() {
             </div>
 
             <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 space-y-4">
-              <h2 className="text-sm font-bold text-indigo-400 border-b border-slate-800 pb-2">تعديل حصص يوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h2 className="text-sm font-bold text-indigo-400">تعديل حصص يوم {DAYS.find(d => d.id === selectedDay)?.name}</h2>
+                <button onClick={() => handleClearDay(selectedDay)} className="text-xs text-rose-400 bg-rose-500/10 px-3 py-1 rounded-lg">تفريغ اليوم</button>
+              </div>
 
               {activeSchedule[selectedDay]?.map((period) => (
-                <div key={period.id} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-3">
+                <div key={period.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
                   <span className="text-xs font-bold text-indigo-300">الدرس رقم {period.periodNumber}</span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input 
-                      type="text" 
-                      value={period.subject} 
-                      onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)}
-                      placeholder="اسم المادة (أو حصة فراغ)" 
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" 
-                    />
-                    <input 
-                      type="text" 
-                      value={period.className || ''} 
-                      onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)}
-                      placeholder="الصف (مثال: الخامس الابتدائي)" 
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400" 
-                    />
-                    <input 
-                      type="text" 
-                      value={period.teacher} 
-                      onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)}
-                      placeholder="اسم الأستاذ" 
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" 
-                    />
+                    <input type="text" value={period.subject} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'subject', e.target.value)} placeholder="اسم المادة (أو فراغ)" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    <input type="text" value={period.className || ''} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'className', e.target.value)} placeholder="الصف (مثال: الخامس الابتدائي)" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400" />
+                    <input type="text" value={period.teacher} onChange={(e) => handlePeriodFieldChange(selectedDay, period.id, 'teacher', e.target.value)} placeholder="اسم الأستاذ" className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
                   </div>
                 </div>
               ))}
 
               <button onClick={handleSaveFullSchedule} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-2xl text-sm shadow-xl">
-                💾 حفظ التعديلات والاعتماد نهائياً
+                💾 حفظ التعديلات والاعتماد
               </button>
             </div>
           </div>
